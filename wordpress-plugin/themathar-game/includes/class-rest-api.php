@@ -17,74 +17,98 @@ class Themathar_REST_API {
         // Lobby endpoints
         register_rest_route(self::API_NAMESPACE, '/lobbies', array(
             'methods'  => 'GET',
-            'callback' => array(__CLASS__, 'get_available_lobbies'),
+            'callback' => function($request) {
+                return self::get_available_lobbies($request);
+            },
             'permission_callback' => '__return_true',
         ));
 
         register_rest_route(self::API_NAMESPACE, '/lobbies', array(
             'methods'  => 'POST',
-            'callback' => array(__CLASS__, 'create_lobby'),
+            'callback' => function($request) {
+                return self::create_lobby($request);
+            },
             'permission_callback' => '__return_true',
         ));
 
         register_rest_route(self::API_NAMESPACE, '/lobbies/(?P<lobby_id>\d+)', array(
             'methods'  => 'GET',
-            'callback' => array(__CLASS__, 'get_lobby'),
+            'callback' => function($request) {
+                return self::get_lobby($request);
+            },
             'permission_callback' => '__return_true',
         ));
 
         register_rest_route(self::API_NAMESPACE, '/lobbies/(?P<lobby_id>\d+)/join', array(
             'methods'  => 'POST',
-            'callback' => array(__CLASS__, 'join_lobby'),
+            'callback' => function($request) {
+                return self::join_lobby($request);
+            },
             'permission_callback' => '__return_true',
         ));
 
         register_rest_route(self::API_NAMESPACE, '/lobbies/(?P<lobby_id>\d+)/leave', array(
             'methods'  => 'POST',
-            'callback' => array(__CLASS__, 'leave_lobby'),
+            'callback' => function($request) {
+                return self::leave_lobby($request);
+            },
             'permission_callback' => '__return_true',
         ));
 
         register_rest_route(self::API_NAMESPACE, '/lobbies/(?P<lobby_id>\d+)/ready', array(
             'methods'  => 'POST',
-            'callback' => array(__CLASS__, 'toggle_ready'),
+            'callback' => function($request) {
+                return self::toggle_ready($request);
+            },
             'permission_callback' => '__return_true',
         ));
 
         register_rest_route(self::API_NAMESPACE, '/lobbies/(?P<lobby_id>\d+)/start', array(
             'methods'  => 'POST',
-            'callback' => array(__CLASS__, 'start_game'),
+            'callback' => function($request) {
+                return self::start_game($request);
+            },
             'permission_callback' => '__return_true',
         ));
 
         // Game state endpoints
         register_rest_route(self::API_NAMESPACE, '/game/(?P<lobby_id>\d+)/state', array(
             'methods'  => 'GET',
-            'callback' => array(__CLASS__, 'get_game_state'),
+            'callback' => function($request) {
+                return self::get_game_state($request);
+            },
             'permission_callback' => '__return_true',
         ));
 
         register_rest_route(self::API_NAMESPACE, '/game/(?P<lobby_id>\d+)/flip', array(
             'methods'  => 'POST',
-            'callback' => array(__CLASS__, 'flip_card'),
+            'callback' => function($request) {
+                return self::flip_card($request);
+            },
             'permission_callback' => '__return_true',
         ));
 
         register_rest_route(self::API_NAMESPACE, '/game/(?P<lobby_id>\d+)/mask', array(
             'methods'  => 'POST',
-            'callback' => array(__CLASS__, 'use_mask'),
+            'callback' => function($request) {
+                return self::use_mask($request);
+            },
             'permission_callback' => '__return_true',
         ));
 
         register_rest_route(self::API_NAMESPACE, '/game/(?P<lobby_id>\d+)/heartbeat', array(
             'methods'  => 'POST',
-            'callback' => array(__CLASS__, 'heartbeat'),
+            'callback' => function($request) {
+                return self::heartbeat($request);
+            },
             'permission_callback' => '__return_true',
         ));
 
         register_rest_route(self::API_NAMESPACE, '/game/(?P<lobby_id>\d+)/end-turn', array(
             'methods'  => 'POST',
-            'callback' => array(__CLASS__, 'end_turn'),
+            'callback' => function($request) {
+                return self::end_turn($request);
+            },
             'permission_callback' => '__return_true',
         ));
     }
