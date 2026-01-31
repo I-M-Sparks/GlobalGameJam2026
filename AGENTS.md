@@ -3,6 +3,49 @@
 ## Overview
 This document contains instructions for agents working on the Themathar game repository to streamline development workflow.
 
+**Important:** The game runs in a WordPress environment with cross-browser lobby synchronization. The WASM client (at `http://localhost:8000`) communicates with a WordPress REST API backend for multiplayer features.
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ Themathar Multiplayer Game                              │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  Browser 1                    Browser 2                │
+│  ┌──────────────────┐        ┌──────────────────┐     │
+│  │ WASM Game Client │        │ WASM Game Client │     │
+│  │ (localhost:8000) │        │ (localhost:8000) │     │
+│  └────────┬─────────┘        └────────┬─────────┘     │
+│           │                            │                │
+│           └────────────────┬───────────┘                │
+│                            │                            │
+│                    HTTP REST API                        │
+│              /wp-json/themathar/v1/*                    │
+│                            │                            │
+│           ┌────────────────▼───────────────┐            │
+│           │   WordPress Backend           │            │
+│           │ (localhost or custom URL)     │            │
+│           │ + Themathar Plugin            │            │
+│           │ + Database (lobbies, players) │            │
+│           └───────────────────────────────┘            │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+## WordPress Integration
+
+The game communicates with WordPress for cross-browser lobby synchronization. Key endpoints:
+- `GET /wp-json/themathar/v1/lobbies` - Fetch available lobbies
+- `POST /wp-json/themathar/v1/lobbies` - Create new lobby
+- `POST /wp-json/themathar/v1/lobbies/{id}/join` - Join lobby
+- `GET /wp-json/themathar/v1/lobbies/{id}` - Get lobby details
+
+**Query Parameter:** The game accepts `?wp=URL` to specify WordPress location:
+- `http://localhost:8000` → uses `http://localhost` as WordPress
+- `http://localhost:8000?wp=http://192.168.1.50` → uses custom WordPress URL
+- See [WORDPRESS_INTEGRATION.md](WORDPRESS_INTEGRATION.md) for details
+
 ## Building and Serving the Game
 
 ### Quick Build & Serve Command
@@ -37,6 +80,20 @@ python3 -m http.server 8000
 ```
 
 **IMPORTANT:** Always use `--target web` flag with wasm-bindgen. Without it, the generated `themathar_game.js` wrapper will try to import WASM as an ES module, which causes browser MIME type errors. The `--target web` flag generates a wrapper that properly uses the Fetch API to load WASM files.
+
+### Deploying to WordPress
+
+After building, the WASM files need to be accessible. There are two approaches:
+
+1. **Local Development** (current setup):
+   - WASM served from `themathar_game/web/` via Python HTTP server on port 8000
+   - WordPress API accessed via `?wp=` query parameter or same origin
+   - Files: `themathar_game.js`, `themathar_game_bg.js`, `themathar_game.wasm`, `themathar_game_bg.wasm`
+
+2. **Production** (WordPress-hosted):
+   - Copy WASM files to WordPress plugin directory
+   - Serve from `/wp-content/plugins/themathar-game/assets/`
+   - Update `index.html` in WordPress to load from plugin directory
 
 ## Project Structure
 
