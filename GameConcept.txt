@@ -1,0 +1,62 @@
+The Game is developed during the GlobalGameJam2026 in the Stadtbibliothek Stuttgart.
+
+Multiple Museums are offering data usable for the GameJam.
+
+The GameJam topic is Mask.
+
+The Goal is to run a multiplayer game built in Rust using the Bevy framework.
+
+The interpretation of the theme is "The Mask that remembers".
+The idea is that a player joining the server must 'put on the mask' of the player before them and continue the game where the other player left of.
+This means there must be a limited total amount of players.
+
+The player goals are yet to be determined; interpretations also yet to be determined if players cooperate or each 'mask' represents a faction and each faction plays against each other.
+
+GOAL IDEA: the first player chooses a goal and needs to set up the game so that following players can figure out what the goal is. Alternatively the goal is given to the first player. Only the first player learns the goal, following players need to guess based on the actions taken by previous players.
+
+IDEA: the game is semi-random generated, inspired by dwarf fortress.
+
+THOUGHT: there are up to four masks working towards the same goal.
+
+IDEA: every X players, the goal is communicated again; this is to steer players back towards the goal if they have completely lost track.
+
+Questions:
+How are actions performed? Are players limited in the time they have, or in the numbers of actions? what qualifies as action?
+
+How can players leave hints for other players?
+
+Gameplay idea: the original data is presented in the game, and players can "create" usable assets via drag and drop
+e.g.: they can create axes from axe-images, or build a bridge by dragging it from the bridge-section of the japanese drawing
+
+game inspiration:
+-game save sharing from 'dwarf fortress'
+-chaotic asset creation from 'scribblenauts'
+
+when picking up the game, players can put on multiple different masks:
+-mask of the murderer
+-mask to the king
+
+TBD:
+-when does the game 'end'? are there winning or losing conditions?
+-THOUGHT: player can only create X assets during their turn? only the next player can create more?
+-IDEA: the game is AR / VR and players "put on the mask" by holding the phone "in front of their face"? -> the phone IS the mask
+
+The Mask That Remembers
+TMTR -> Themathar
+players become Avatars of history that.. does stuff with things from history
+they draw powers from themed assets 
+-> theme + Avatar = Thematar (also short for "the mask that remembers")
+
+THOUGHT: this is a museum game -> maybe it could be an endless game? or maybe the goal should be always communicated and the only challenge to players is figure out how to achieve it by building on top of what the previous player did
+
+Gameplay idea: to make it easier to play cooperatively, maybe it's better if players can join in and are assigned a waiting slot, but they watch the active player(s) before them, what might make it easier to communicate how to get to a goal
+
+the game is turn-based and asynchronous
+
+technical concept:
+a wordpress hosted site that stores information about players in queue and the currently active player.
+players have a limited amount of time to perform their actions.
+if a player's time is over, the next player in the queue may force them out and begin their turn.
+to implement this without a server, each time a player attempts to take action, the game client needs to check if they are still valid as acting player.
+
+a player may not become active player until X other players have acted. for starters, let's say at least two other players must have acted before a player can take the turn again.
