@@ -363,14 +363,60 @@ pub(crate) fn poll_lobbies(
 }
 
 #[cfg(target_arch = "wasm32")]
+fn get_wordpress_base_url() -> String {
+    use web_sys::window;
+    
+    let window = match window() {
+        Some(w) => w,
+        None => {
+            bevy::log::warn!("No window object available");
+            return "http://localhost".to_string();
+        }
+    };
+    
+    let location = window.location();
+    
+    // First, try to get WordPress URL from query parameter
+    if let Ok(search) = location.search() {
+        if let Some(wp_url) = extract_query_param(&search, "wp") {
+            bevy::log::info!("📡 Using WordPress URL from query param: {}", wp_url);
+            return wp_url;
+        }
+    }
+    
+    // Fall back to current origin
+    match location.origin() {
+        Ok(origin) => {
+            bevy::log::debug!("📡 Using origin as WordPress URL: {}", origin);
+            origin
+        }
+        Err(_) => "http://localhost".to_string(),
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn extract_query_param(query: &str, param_name: &str) -> Option<String> {
+    // Parse query string for parameter
+    // ?wp=http://192.168.1.100 -> returns Some("http://192.168.1.100")
+    let query = query.trim_start_matches('?');
+    for pair in query.split('&') {
+        if let Some((key, value)) = pair.split_once('=') {
+            if key == param_name {
+                return Some(value.to_string());
+            }
+        }
+    }
+    None
+}
+
+#[cfg(target_arch = "wasm32")]
 async fn fetch_lobbies_from_backend() -> Result<Vec<LobbyInfo>, String> {
     use web_sys::window;
     use wasm_bindgen_futures::JsFuture;
     
     let window = window().ok_or("No window")?;
-    let location = window.location();
-    let origin = location.origin().map_err(|_| "No origin")?;
-    let api_url = format!("{}/wp-json/themathar/v1/lobbies", origin);
+    let base_url = get_wordpress_base_url();
+    let api_url = format!("{}/wp-json/themathar/v1/lobbies", base_url);
     
     bevy::log::debug!("📡 Fetching lobbies from: {}", api_url);
     
@@ -397,9 +443,8 @@ async fn create_lobby_on_backend(player_name: &str) -> Result<usize, String> {
     use wasm_bindgen_futures::JsFuture;
     
     let window = window().ok_or("No window")?;
-    let location = window.location();
-    let origin = location.origin().map_err(|_| "No origin")?;
-    let api_url = format!("{}/wp-json/themathar/v1/lobbies", origin);
+    let base_url = get_wordpress_base_url();
+    let api_url = format!("{}/wp-json/themathar/v1/lobbies", base_url);
     
     bevy::log::debug!("📡 Creating lobby on backend with player: {}", player_name);
     bevy::log::info!("✅ Lobby creation sent to backend at {}", api_url);
