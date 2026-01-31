@@ -9,8 +9,6 @@ pub(crate) fn setup_game_over(
     session: Res<GameSession>,
     lobby: Res<Lobby>,
 ) {
-    commands.spawn(Camera2d::default());
-
     let winner_name = session
         .winner_id
         .and_then(|slot| lobby.player_at_slot(slot))

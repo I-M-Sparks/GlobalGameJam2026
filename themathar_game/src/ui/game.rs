@@ -16,8 +16,6 @@ pub(crate) fn setup_game(
     // In real implementation, this comes from lobby join data
     local_player.0 = 1;
 
-    commands.spawn(Camera2d::default());
-
     commands
         .spawn((
             Node {

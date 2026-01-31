@@ -7,8 +7,6 @@ use crate::board;
 use super::cleanup::UIRoot;
 
 pub(crate) fn setup_lobby_waiting(mut commands: Commands) {
-    commands.spawn(Camera2d::default());
-
     commands
         .spawn((
             Node {

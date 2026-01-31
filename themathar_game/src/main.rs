@@ -39,6 +39,8 @@ pub fn run_game() {
             .init_resource::<HeartbeatState>()
             .init_resource::<PlayerName>()
             .init_resource::<LobbyPollTimer>()
+            // Spawn camera once at startup (not in each UI state)
+            .add_systems(Startup, spawn_camera)
             // Menu state
             .add_systems(OnEnter(GameState::Menu), ui::menu::setup_menu)
             .add_systems(Update, (
@@ -87,4 +89,9 @@ pub fn run_game() {
             .add_systems(OnExit(GameState::GameOver), ui::cleanup::cleanup_ui)
         .run();
     }
+
+/// Spawn the main camera once at startup to avoid ambiguity warnings
+fn spawn_camera(mut commands: Commands) {
+    commands.spawn(Camera2d::default());
+}
 

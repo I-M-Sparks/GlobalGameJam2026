@@ -5,8 +5,6 @@ use crate::types::GameState;
 use super::cleanup::UIRoot;
 
 pub(crate) fn setup_menu(mut commands: Commands) {
-    commands.spawn(Camera2d::default());
-
     commands
         .spawn((
             Node {
