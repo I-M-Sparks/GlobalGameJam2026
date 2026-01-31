@@ -2,11 +2,26 @@
 
 use bevy::prelude::*;
 
+/// Player name resource
+#[derive(Resource, Default)]
+pub struct PlayerName(pub String);
+
+/// Lobby polling timer
+#[derive(Resource)]
+pub struct LobbyPollTimer(pub f32);
+
+impl Default for LobbyPollTimer {
+    fn default() -> Self {
+        LobbyPollTimer(0.0)
+    }
+}
+
 /// Top-level game state
 #[derive(States, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum GameState {
     #[default]
     Menu,
+    Credits,    
     LobbyBrowser,
     LobbyWaiting,
     Playing,
@@ -82,6 +97,21 @@ pub struct Lobby {
     pub max_players: usize,
 }
 
+/// Available lobbies
+#[derive(Resource, Default, Clone)]
+pub struct LobbiesList {
+    pub lobbies: Vec<LobbyInfo>,
+    pub next_id: usize,
+}
+
+/// Information about a lobby
+#[derive(Clone, Debug)]
+pub struct LobbyInfo {
+    pub id: usize,
+    pub player_count: usize,
+    pub max_players: usize,
+}
+
 impl Lobby {
     pub fn player_at_slot(&self, slot: usize) -> Option<&Player> {
         self.players.iter().find(|p| p.slot == slot)
@@ -119,6 +149,8 @@ pub struct GameSession {
 pub struct BoardState {
     pub current_turn_flips: Vec<usize>, // Card positions flipped this turn (max 2)
     pub last_flip_time: f32,            // When last card was flipped
+    pub pair_match_result: Option<bool>, // None = not checked yet, Some(true) = match, Some(false) = no match
+    pub pair_check_delay: f32,          // Delay before executing turn-end behavior (for visual feedback)
 }
 
 /// Card flip action (for replay)

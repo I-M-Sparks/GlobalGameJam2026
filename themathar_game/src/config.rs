@@ -1,5 +1,16 @@
 /// Game configuration and adjustable parameters
 
+// Board dimensions
+pub const TOTAL_PAIRS: usize = 8;                // 8 pairs (A-H)
+pub const TOTAL_CARDS: usize = TOTAL_PAIRS * 2; // 16 cards (4x4 grid)
+
+// UI dimensions
+pub const CARD_WIDTH: f32 = 100.0;
+pub const CARD_HEIGHT: f32 = 100.0;
+pub const CARD_GAP: f32 = 10.0;
+pub const BOARD_PADDING: f32 = 20.0;
+pub const PLAYER_NAME_FONT_SIZE: f32 = 24.0;
+
 // Card visibility
 pub const CARD_FLIP_VISIBILITY_SECONDS: f32 = 2.0;
 
@@ -18,18 +29,6 @@ pub const ACTION_HISTORY_MAX_STORED: usize = 100;
 // Heartbeat/sync
 pub const HEARTBEAT_INTERVAL_SECONDS: f32 = 1.0;
 
-// UI Layout
-pub const BOARD_SIZE: usize = 4;
-pub const TOTAL_CARDS: usize = BOARD_SIZE * BOARD_SIZE; // 16
-pub const TOTAL_PAIRS: usize = TOTAL_CARDS / 2; // 8
+// Lobby polling
+pub const LOBBY_POLL_INTERVAL_SECONDS: f32 = 1.0; // Check for lobbies every X seconds
 
-// Card dimensions
-pub const CARD_WIDTH: f32 = 100.0;
-pub const CARD_HEIGHT: f32 = 100.0;
-pub const BOARD_PADDING: f32 = 20.0;
-pub const CARD_GAP: f32 = 10.0;
-
-// Player positions (center-left, center-top, center-right, center-bottom)
-pub const PLAYER_NAME_FONT_SIZE: f32 = 24.0;
-pub const PLAYER_HIGHLIGHT_COLOR: (f32, f32, f32) = (1.0, 1.0, 0.0); // Yellow
-pub const PLAYER_NORMAL_COLOR: (f32, f32, f32) = (0.7, 0.7, 0.7); // Gray

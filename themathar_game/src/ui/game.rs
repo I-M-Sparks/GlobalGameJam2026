@@ -108,6 +108,12 @@ pub(crate) fn setup_game(
                     position_type: PositionType::Absolute,
                     left: Val::Percent(50.0),
                     top: Val::Percent(50.0),
+                    margin: UiRect {
+                        left: Val::Px(-155.0),  // Half of grid size (310px / 2)
+                        right: Val::Auto,
+                        top: Val::Px(-155.0),
+                        bottom: Val::Auto,
+                    },
                     ..default()
                 })
                 .with_children(|parent| {
@@ -268,6 +274,11 @@ pub(crate) fn handle_card_clicks(
 
     for (interaction, card_visual) in &interaction_query {
         if *interaction == Interaction::Pressed {
+            // Only allow up to 2 cards per turn
+            if session.board_state.current_turn_flips.len() >= 2 {
+                return;
+            }
+
             // Flip card if current player can flip
             if let Some(card) = board.card_at_mut(card_visual.position) {
                 if !card.is_face_up {
@@ -291,6 +302,82 @@ pub(crate) fn handle_card_clicks(
                 }
             }
         }
+    }
+}
+
+pub(crate) fn check_pair_match(
+    board: Res<Board>,
+    mut session: ResMut<GameSession>,
+) {
+    // Only check if exactly 2 cards are flipped
+    if session.board_state.current_turn_flips.len() != 2 {
+        return;
+    }
+
+    // Don't check if already checked
+    if session.board_state.pair_match_result.is_some() {
+        return;
+    }
+
+    let pos1 = session.board_state.current_turn_flips[0];
+    let pos2 = session.board_state.current_turn_flips[1];
+
+    if let (Some(card1), Some(card2)) = (board.card_at(pos1), board.card_at(pos2)) {
+        let is_match = card1.pair_id == card2.pair_id;
+        session.board_state.pair_match_result = Some(is_match);
+        
+        // Set delay before turn-end behavior (allow time for visual feedback)
+        session.board_state.pair_check_delay = if is_match { 0.5 } else { 1.0 };
+    }
+}
+
+pub(crate) fn end_turn_if_needed(
+    mut board: ResMut<Board>,
+    mut session: ResMut<GameSession>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    // Only process if pair was checked
+    if session.board_state.pair_match_result.is_none() {
+        return;
+    }
+
+    // Decrease delay timer
+    session.board_state.pair_check_delay -= 0.016; // Approximately 60 FPS
+
+    // Process turn end when delay expires
+    if session.board_state.pair_check_delay <= 0.0 {
+        let was_match = session.board_state.pair_match_result.unwrap_or(false);
+
+        if !was_match {
+            // Flip cards back if they didn't match
+            for &pos in &session.board_state.current_turn_flips {
+                if let Some(card) = board.card_at_mut(pos) {
+                    card.is_face_up = false;
+                }
+            }
+        }
+
+        // Check win condition (all cards face up and no cards left to flip)
+        let all_matched = board.cards.iter().all(|card| card.is_face_up);
+
+        if all_matched {
+            // Game won!
+            session.winner_id = Some(session.active_player_slot);
+            next_state.set(GameState::GameOver);
+        } else if !was_match {
+            // Advance to next player on mismatch
+            session.active_player_slot = session.active_player_slot % 4 + 1;
+            session.turn_number += 1;
+            session.turn_started_at = session.game_time;
+            session.turn_timeout_at = session.game_time + 60.0;
+            session.grace_period_ends_at = session.game_time + 65.0;
+        }
+        // If was_match, same player continues (don't change active_player_slot)
+
+        // Reset turn state
+        session.board_state.current_turn_flips.clear();
+        session.board_state.pair_match_result = None;
+        session.board_state.pair_check_delay = 0.0;
     }
 }
 

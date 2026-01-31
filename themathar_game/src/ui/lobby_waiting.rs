@@ -119,8 +119,8 @@ pub(crate) struct ReadyBtn;
 pub(crate) struct StartBtn;
 
 #[derive(Component)]
-struct LobbyPlayerSlot {
-    slot: usize,
+pub(crate) struct LobbyPlayerSlot {
+    pub slot: usize,
 }
 
 pub(crate) fn handle_lobby_waiting(
@@ -155,6 +155,28 @@ pub(crate) fn handle_lobby_waiting(
             session.grace_period_ends_at = TURN_TIME_LIMIT_SECONDS + TURN_TIMEOUT_GRACE_PERIOD_SECONDS;
 
             next_state.set(GameState::Playing);
+        }
+    }
+}
+
+pub(crate) fn update_player_display(
+    lobby: Res<Lobby>,
+    mut query: Query<&mut Text, With<LobbyPlayerSlot>>,
+) {
+    if query.is_empty() {
+        return;
+    }
+
+    for mut text in query.iter_mut() {
+        let text_content = text.0.as_str();
+        if let Some(slot_str) = text_content.split(": ").next() {
+            if let Ok(slot) = slot_str.replace("Slot ", "").parse::<usize>() {
+                if let Some(player) = lobby.player_at_slot(slot) {
+                    text.0 = format!("Slot {}: {}", slot, player.name);
+                } else {
+                    text.0 = format!("Slot {}: (empty)", slot);
+                }
+            }
         }
     }
 }

@@ -1,10 +1,10 @@
-/// Main menu UI
+/// Credits UI
 
 use bevy::prelude::*;
 use crate::types::GameState;
 use super::cleanup::UIRoot;
 
-pub(crate) fn setup_menu(mut commands: Commands) {
+pub(crate) fn setup_credits(mut commands: Commands) {
     commands.spawn(Camera2d::default());
 
     commands
@@ -24,7 +24,7 @@ pub(crate) fn setup_menu(mut commands: Commands) {
         .with_children(|parent| {
             // Title
             parent.spawn((
-                Text::new("THEMATHAR"),
+                Text::new("CREDITS"),
                 TextFont {
                     font_size: 80.0,
                     ..default()
@@ -32,43 +32,17 @@ pub(crate) fn setup_menu(mut commands: Commands) {
                 TextColor(Color::srgb(1.0, 0.8, 0.2)),
             ));
 
-            // Subtitle
+            // Credits content (empty for now)
             parent.spawn((
-                Text::new("The Mask That Remembers"),
+                Text::new(""),
                 TextFont {
-                    font_size: 32.0,
+                    font_size: 24.0,
                     ..default()
                 },
                 TextColor(Color::srgb(0.8, 0.8, 0.8)),
             ));
 
-            // Start button
-            parent
-                .spawn((
-                    Button,
-                    Node {
-                        width: Val::Px(300.0),
-                        height: Val::Px(80.0),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        margin: UiRect::top(Val::Px(40.0)),
-                        ..default()
-                    },
-                    BackgroundColor(Color::srgb(0.2, 0.6, 1.0)),
-                    MenuButton,
-                ))
-                .with_children(|parent| {
-                    parent.spawn((
-                        Text::new("START GAME"),
-                        TextFont {
-                            font_size: 40.0,
-                            ..default()
-                        },
-                        TextColor(Color::WHITE),
-                    ));
-                });
-
-            // Credits button
+            // Back button
             parent
                 .spawn((
                     Button,
@@ -77,16 +51,17 @@ pub(crate) fn setup_menu(mut commands: Commands) {
                         height: Val::Px(60.0),
                         justify_content: JustifyContent::Center,
                         align_items: AlignItems::Center,
+                        margin: UiRect::top(Val::Px(40.0)),
                         ..default()
                     },
-                    BackgroundColor(Color::srgb(0.6, 0.6, 0.2)),
-                    CreditsButton,
+                    BackgroundColor(Color::srgb(0.6, 0.2, 0.2)),
+                    BackButton,
                 ))
                 .with_children(|parent| {
                     parent.spawn((
-                        Text::new("CREDITS"),
+                        Text::new("BACK"),
                         TextFont {
-                            font_size: 28.0,
+                            font_size: 40.0,
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -96,29 +71,15 @@ pub(crate) fn setup_menu(mut commands: Commands) {
 }
 
 #[derive(Component)]
-pub(crate) struct MenuButton;
+pub(crate) struct BackButton;
 
-#[derive(Component)]
-pub(crate) struct CreditsButton;
-
-pub(crate) fn menu_input(
-    interaction_query: Query<&Interaction, (Changed<Interaction>, With<MenuButton>)>,
+pub(crate) fn credits_input(
+    interaction_query: Query<&Interaction, (Changed<Interaction>, With<BackButton>)>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     for interaction in &interaction_query {
         if *interaction == Interaction::Pressed {
-            next_state.set(GameState::LobbyBrowser);
-        }
-    }
-}
-
-pub(crate) fn credits_button_input(
-    interaction_query: Query<&Interaction, (Changed<Interaction>, With<CreditsButton>)>,
-    mut next_state: ResMut<NextState<GameState>>,
-) {
-    for interaction in &interaction_query {
-        if *interaction == Interaction::Pressed {
-            next_state.set(GameState::Credits);
+            next_state.set(GameState::Menu);
         }
     }
 }

@@ -12,6 +12,8 @@ use bevy::prelude::*;
 use wasm_bindgen::prelude::*;
 
 fn main() {
+    // This is only called in native builds
+    #[cfg(not(target_arch = "wasm32"))]
     run_game();
 }
 
@@ -29,28 +31,47 @@ pub fn run_game() {
             .init_state::<GameState>()
             .init_resource::<Board>()
             .init_resource::<Lobby>()
+            .init_resource::<LobbiesList>()
             .init_resource::<GameSession>()
             .init_resource::<ReplaySystem>()
             .init_resource::<ReplayBoard>()
             .init_resource::<LocalPlayerSlot>()
             .init_resource::<HeartbeatState>()
+            .init_resource::<PlayerName>()
+            .init_resource::<LobbyPollTimer>()
             // Menu state
             .add_systems(OnEnter(GameState::Menu), ui::menu::setup_menu)
-            .add_systems(Update, ui::menu::menu_input.run_if(in_state(GameState::Menu)))
+            .add_systems(Update, (
+                ui::menu::menu_input,
+                ui::menu::credits_button_input,
+            ).run_if(in_state(GameState::Menu)))
             .add_systems(OnExit(GameState::Menu), ui::cleanup::cleanup_ui)
+            // Credits state
+            .add_systems(OnEnter(GameState::Credits), ui::credits::setup_credits)
+            .add_systems(Update, ui::credits::credits_input.run_if(in_state(GameState::Credits)))
+            .add_systems(OnExit(GameState::Credits), ui::cleanup::cleanup_ui)
             // Lobby browser
             .add_systems(OnEnter(GameState::LobbyBrowser), ui::lobby_browser::setup_lobby_browser)
-            .add_systems(Update, ui::lobby_browser::handle_lobby_browser.run_if(in_state(GameState::LobbyBrowser)))
+            .add_systems(Update, (
+                ui::lobby_browser::handle_lobby_browser,
+                ui::lobby_browser::update_input_focus,
+                ui::lobby_browser::poll_lobbies,
+            ).run_if(in_state(GameState::LobbyBrowser)))
             .add_systems(OnExit(GameState::LobbyBrowser), ui::cleanup::cleanup_ui)
             // Lobby waiting
             .add_systems(OnEnter(GameState::LobbyWaiting), ui::lobby_waiting::setup_lobby_waiting)
-            .add_systems(Update, ui::lobby_waiting::handle_lobby_waiting.run_if(in_state(GameState::LobbyWaiting)))
+            .add_systems(Update, (
+                ui::lobby_waiting::handle_lobby_waiting,
+                ui::lobby_waiting::update_player_display,
+            ).run_if(in_state(GameState::LobbyWaiting)))
             .add_systems(OnExit(GameState::LobbyWaiting), ui::cleanup::cleanup_ui)
             // Playing
             .add_systems(OnEnter(GameState::Playing), ui::game::setup_game)
             .add_systems(Update, (
                 ui::game::handle_mask_activation,
                 ui::game::handle_card_clicks,
+                ui::game::check_pair_match,
+                ui::game::end_turn_if_needed,
                 ui::game::update_card_visibility,
                 ui::game::update_replay_system,
                 ui::game::update_game_logic,
