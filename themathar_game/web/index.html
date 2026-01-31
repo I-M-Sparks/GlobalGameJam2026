@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Themathar - Multiplayer Game</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
     <style>
         * {
             margin: 0;
@@ -17,88 +19,10 @@
             width: 100%;
             height: 100%;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-        }
-
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
         }
 
         canvas {
             display: block;
-            max-width: 100%;
-            max-height: 100%;
-        }
-
-        .loading {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .spinner {
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top: 4px solid white;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        .loading-text {
-            color: white;
-            font-size: 18px;
-            font-weight: 300;
-        }
-
-        .error {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(255, 59, 48, 0.95);
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            max-width: 300px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            z-index: 999;
-            animation: slideIn 0.3s ease-out;
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateX(400px);
-                opacity: 0;
-            }
-
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        #bevy-container {
             width: 100%;
             height: 100%;
         }
@@ -106,52 +30,64 @@
 </head>
 
 <body>
-    <div class="loading" id="loading">
-        <div class="spinner"></div>
-        <div class="loading-text">Loading Themathar Game...</div>
-    </div>
-
-    <div id="bevy-container"></div>
-
+    <canvas id="bevy-canvas"></canvas>
     <script type="module">
-        // Configure WASM path
-        import init from './themathar_game.js';
+        import init, { run_game, receive_identity, receive_state } from './themathar_game.js';
 
         async function run() {
-            try {
-                // Remove loading screen when WASM loads
-                const loading = document.getElementById('loading');
+            await init();
+            run_game();
 
-                await init();
+            const API_BASE = '/wp-json/themathar/v1';
+            let lobbyId = null;
+            let playerId = null;
+            let heartbeatTimer = null;
 
-                // Hide loading after a short delay to show game is loaded
-                if (loading) {
-                    loading.style.display = 'none';
+            function setIdentity(newLobbyId, newPlayerId) {
+                lobbyId = Number(newLobbyId);
+                playerId = Number(newPlayerId);
+                receive_identity(lobbyId, playerId);
+            }
+
+            async function heartbeatOnce() {
+                if (!lobbyId || !playerId) {
+                    return;
                 }
-            } catch (err) {
-                console.error('Failed to load Themathar Game:', err);
 
-                // Show error message
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'error';
-                errorDiv.textContent = `Error loading game: ${err.message}`;
-                document.body.appendChild(errorDiv);
+                try {
+                    await fetch(`${API_BASE}/game/${lobbyId}/heartbeat`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ player_id: playerId })
+                    });
 
-                // Also log to console
-                const loading = document.getElementById('loading');
-                if (loading) {
-                    loading.innerHTML = `
-                        <div style="color: red; font-size: 20px; font-weight: bold;">Error Loading Game</div>
-                        <div style="color: white; margin-top: 10px; max-width: 500px;">
-                            ${err.message}<br><br>
-                            Check the browser console for more details.
-                        </div>
-                    `;
+                    const stateResponse = await fetch(`${API_BASE}/game/${lobbyId}/state`);
+                    const stateJson = await stateResponse.json();
+
+                    const activePlayerId = Number(stateJson?.lobby?.active_player_id ?? 0);
+                    const turnNumber = Number(stateJson?.lobby?.current_turn_num ?? 0);
+
+                    receive_state(activePlayerId, turnNumber);
+                } catch (err) {
+                    console.error('Heartbeat failed', err);
                 }
             }
+
+            function startHeartbeat() {
+                if (heartbeatTimer) {
+                    clearInterval(heartbeatTimer);
+                }
+                heartbeatOnce();
+                heartbeatTimer = setInterval(heartbeatOnce, 1000);
+            }
+
+            window.Themathar = {
+                setIdentity,
+                startHeartbeat,
+            };
         }
 
-        run();
+        run().catch(console.error);
     </script>
 </body>
 

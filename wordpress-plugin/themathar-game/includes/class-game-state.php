@@ -3,13 +3,41 @@
 class Themathar_Game_State {
     
     private static $turn_duration = 60; // seconds
+    private static $heartbeat_timeout = 2; // seconds - if no heartbeat in 2 seconds, player is considered inactive
     
     public static function get_game_state() {
         return Themathar_Database::get_game_state();
     }
     
+    public static function check_active_player_heartbeat() {
+        $state = self::get_game_state();
+        
+        // If there's an active player, check if they're still alive
+        if ($state['active_player_id']) {
+            if (!Themathar_Database::is_player_alive($state['active_player_id'], self::$heartbeat_timeout)) {
+                // Active player missed heartbeat - force them out and promote next player
+                Themathar_Database::record_turn(
+                    $state['active_player_id'],
+                    $state['active_player_name'],
+                    time() - $state['active_player_started_at']
+                );
+                
+                self::promote_next_player($state);
+                Themathar_Database::update_game_state($state);
+                
+                return true; // Player was forced out due to missed heartbeat
+            }
+        }
+        
+        return false;
+    }
+    
     public static function join_queue($player_id, $player_name) {
         $state = self::get_game_state();
+        
+        // First, check if active player has missed their heartbeat and force them out if needed
+        self::check_active_player_heartbeat();
+        $state = self::get_game_state(); // Refresh state after heartbeat check
         
         // Check if player is already active
         if ($state['active_player_id'] === $player_id) {
@@ -31,6 +59,23 @@ class Themathar_Game_State {
                     'message' => 'You are already in the queue'
                 );
             }
+        }
+        
+        // If no active player, make this player active
+        if (!$state['active_player_id']) {
+            $state['active_player_id'] = $player_id;
+            $state['active_player_name'] = $player_name;
+            $state['active_player_started_at'] = time();
+            
+            Themathar_Database::update_game_state($state);
+            Themathar_Database::update_player_last_seen($player_id);
+            
+            return array(
+                'success' => true,
+                'is_active' => true,
+                'queue_position' => -1,
+                'message' => 'You are now the active player'
+            );
         }
         
         // Check if we can promote the next player in queue (if active player's time has passed)

@@ -1,94 +1,69 @@
+mod config;
+mod types;
+mod board;
+mod heartbeat;
+#[path = "ui/mod.rs"]
+mod ui_module;
+
+use crate::types::*;
+use crate::ui_module as ui;
+use crate::heartbeat::HeartbeatState;
 use bevy::prelude::*;
-use themathar_game::*;
-
-#[derive(Resource)]
-pub struct LocalPlayer {
-    pub id: String,
-    pub name: String,
-    pub token: String,
-}
-
-#[derive(Resource)]
-pub struct GameConfig {
-    pub api_base_url: String,
-}
+use wasm_bindgen::prelude::*;
 
 fn main() {
+    run_game();
+}
+
+#[wasm_bindgen]
+pub fn run_game() {
     App::new()
-        .add_plugins(DefaultPlugins)
-        .init_resource::<UIState>()
-        .insert_resource(GameConfig {
-            api_base_url: get_api_base_url(),
-        })
-        .add_systems(Startup, setup)
-        .add_systems(Update, (
-            update_ui_display,
-        ))
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                canvas: Some("#bevy-canvas".to_string()),
+                prevent_default_event_handling: false,
+                ..default()
+            }),
+            ..default()
+        }))
+            .init_state::<GameState>()
+            .init_resource::<Board>()
+            .init_resource::<Lobby>()
+            .init_resource::<GameSession>()
+            .init_resource::<ReplaySystem>()
+            .init_resource::<ReplayBoard>()
+            .init_resource::<LocalPlayerSlot>()
+            .init_resource::<HeartbeatState>()
+            // Menu state
+            .add_systems(OnEnter(GameState::Menu), ui::menu::setup_menu)
+            .add_systems(Update, ui::menu::menu_input.run_if(in_state(GameState::Menu)))
+            .add_systems(OnExit(GameState::Menu), ui::cleanup::cleanup_ui)
+            // Lobby browser
+            .add_systems(OnEnter(GameState::LobbyBrowser), ui::lobby_browser::setup_lobby_browser)
+            .add_systems(Update, ui::lobby_browser::handle_lobby_browser.run_if(in_state(GameState::LobbyBrowser)))
+            .add_systems(OnExit(GameState::LobbyBrowser), ui::cleanup::cleanup_ui)
+            // Lobby waiting
+            .add_systems(OnEnter(GameState::LobbyWaiting), ui::lobby_waiting::setup_lobby_waiting)
+            .add_systems(Update, ui::lobby_waiting::handle_lobby_waiting.run_if(in_state(GameState::LobbyWaiting)))
+            .add_systems(OnExit(GameState::LobbyWaiting), ui::cleanup::cleanup_ui)
+            // Playing
+            .add_systems(OnEnter(GameState::Playing), ui::game::setup_game)
+            .add_systems(Update, (
+                ui::game::handle_mask_activation,
+                ui::game::handle_card_clicks,
+                ui::game::update_card_visibility,
+                ui::game::update_replay_system,
+                ui::game::update_game_logic,
+                ui::game::update_ui_display,
+                ui::game::update_card_visuals,
+                ui::game::update_memory_board_visuals,
+                crate::heartbeat::update_heartbeat,
+            ).run_if(in_state(GameState::Playing)))
+            .add_systems(OnExit(GameState::Playing), ui::cleanup::cleanup_ui)
+            // Game over
+            .add_systems(OnEnter(GameState::GameOver), ui::game_over::setup_game_over)
+            .add_systems(Update, ui::game_over::handle_game_over.run_if(in_state(GameState::GameOver)))
+            .add_systems(OnExit(GameState::GameOver), ui::cleanup::cleanup_ui)
         .run();
-}
-
-#[cfg(target_arch = "wasm32")]
-fn get_api_base_url() -> String {
-    use web_sys::window;
-    
-    if let Some(window) = window() {
-        if let Ok(location) = window.location().href() {
-            // Extract the base URL from current location
-            if let Some(pos) = location.rfind('/') {
-                return location[..pos].to_string();
-            }
-            return location;
-        }
-    }
-    "http://localhost".to_string()
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn get_api_base_url() -> String {
-    "http://localhost".to_string()
-}
-
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    create_ui(commands, asset_server);
-}
-
-fn update_ui_display(
-    mut status_query: Query<&mut Text, With<StatusText>>,
-    mut timer_query: Query<&mut Text, (With<TimerText>, Without<StatusText>)>,
-    mut queue_query: Query<&mut Text, (With<QueueText>, Without<StatusText>, Without<TimerText>)>,
-    ui_state: Res<UIState>,
-) {
-    // Update status text
-    if let Ok(mut text) = status_query.get_single_mut() {
-        let status = if let Some(player_id) = &ui_state.player_id {
-            if let Some(game_state) = &ui_state.current_game_state {
-                if Some(player_id.clone()) == game_state.active_player_id {
-                    "Status: YOU ARE THE ACTIVE PLAYER"
-                } else if game_state.can_next_player_take_turn {
-                    "Status: You can take your turn now!"
-                } else {
-                    "Status: Waiting for your turn"
-                }
-            } else {
-                "Status: Loading..."
-            }
-        } else {
-            "Status: Enter your name and join"
-        };
-        text.0 = status.to_string();
     }
 
-    // Update timer text
-    if let Ok(mut text) = timer_query.get_single_mut() {
-        if let Some(game_state) = &ui_state.current_game_state {
-            text.0 = format!("Time remaining: {} seconds", game_state.time_remaining);
-        }
-    }
-
-    // Update queue text
-    if let Ok(mut text) = queue_query.get_single_mut() {
-        if let Some(game_state) = &ui_state.current_game_state {
-            text.0 = format!("Queue length: {} players", game_state.queue_length);
-        }
-    }
-}

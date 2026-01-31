@@ -1,62 +1,110 @@
-The Game is developed during the GlobalGameJam2026 in the Stadtbibliothek Stuttgart.
+Themathar - The mask that remembers
 
-Multiple Museums are offering data usable for the GameJam.
+The game is a modified version of memory.
 
-The GameJam topic is Mask.
+It is implemented for 2-4 players.
 
-The Goal is to run a multiplayer game built in Rust using the Bevy framework.
+The goal for each player is to uncover matching pairs of pictures, much like in memory.
+The difference to regular memory is that a player does not get to keep a matching pair when uncovered.
 
-The interpretation of the theme is "The Mask that remembers".
-The idea is that a player joining the server must 'put on the mask' of the player before them and continue the game where the other player left of.
-This means there must be a limited total amount of players.
+Instead they must uncover the entire board.
+If they uncover two pictures that do not match, their turn is over and it's the next players turn.
 
-The player goals are yet to be determined; interpretations also yet to be determined if players cooperate or each 'mask' represents a faction and each faction plays against each other.
+To achieve this, the modification takes effect.
 
-GOAL IDEA: the first player chooses a goal and needs to set up the game so that following players can figure out what the goal is. Alternatively the goal is given to the first player. Only the first player learns the goal, following players need to guess based on the actions taken by previous players.
+At any time during their turn, the player may activate the power of Themathar, the mask that remembers.
 
-IDEA: the game is semi-random generated, inspired by dwarf fortress.
+This will show them all of the actions performed during the previous turns of the other players.
+The more actions have been performed, the faster this will happen.
 
-THOUGHT: there are up to four masks working towards the same goal.
+This mask ability makes up for the fact that players can NOT see what's on the card when they are flipped face up unless it is currently their turn.
 
-IDEA: every X players, the goal is communicated again; this is to steer players back towards the goal if they have completely lost track.
+This is the twist in this modified version:
+in normal memory, you can see where each picture is while other players flip them face up.
+In themathar, you can only see which pictures have already been flipped, but you only know which pciture is on them once you activate the masks ability.
 
-Questions:
-How are actions performed? Are players limited in the time they have, or in the numbers of actions? what qualifies as action?
+An additional modification is that matching pairs are not identical; instead they consists of a photograph and a stylized version of that photograph.
 
-How can players leave hints for other players?
+For starters, there is only one difficulty with a board of 4x4 pictures.
 
-Gameplay idea: the original data is presented in the game, and players can "create" usable assets via drag and drop
-e.g.: they can create axes from axe-images, or build a bridge by dragging it from the bridge-section of the japanese drawing
+Technical implementaion:
+The game is a mulitplayer game that runs without a dedicated server.
+Instead it uses a Wordpress backend for players to register and store player actions.
+A new game lobby can be opened only if all game lobbies are full.
+Each game client runs a heartbeat once per second to confirm they are still here and to fetch the latest game data.
+Each player has only one minute to complete their turn; the time it takes to playback the memories of the mask is added to that minute.
+Once a player's time is up they can no longer flip cards, only end their turn.
+To amke sure the game does not get stuck, the player who will become active next can take the mask from the active player 5 seconds after their time is up. If a player would be active next but doesn't act within 30 seconds, they can be kicked from the game. If there is only one player left in a game, the game pauses until new players join; the next player to join will receive the mask next.
 
-game inspiration:
--game save sharing from 'dwarf fortress'
--chaotic asset creation from 'scribblenauts'
 
-when picking up the game, players can put on multiple different masks:
--mask of the murderer
--mask to the king
+Terminology:
+Cards - the items spread in a grid that players can flip
+Cardback - the backside of the card. All cards have an identical cardback.
+Picture - the picture shown on the front of the card
+Photo-Card - A card the shows a photography for a picture
+Art-Card - A card that shows an artistic interpretation of a photography
+Pair - A pair consists of two cards, a photo card and an art card; The Art-Card of a pair shows the artistic interpretation of the photography shown on the Photo-Card in the pair
+Flipping - Cards are "flipped", meaning they are turned around. When they are "face up", they show their Picture, when they are "Face down" they show their card back
+Round - A round consists of multiple  turns  and ends when a player wins.
+Turn - A turn begins when a player takes the mask, thus becoming the active player, which is the only player that can flip cards and see the card pictures. it ends when the players timer ends.
 
-TBD:
--when does the game 'end'? are there winning or losing conditions?
--THOUGHT: player can only create X assets during their turn? only the next player can create more?
--IDEA: the game is AR / VR and players "put on the mask" by holding the phone "in front of their face"? -> the phone IS the mask
+Additional information:
+Question:
+Mask replay timing: When a player activates the mask, does the replay time count against their 60-second turn limit, or is it bonus viewing time on top of the 60 seconds?
+Answer:
+It is bonus viewing time.
 
-The Mask That Remembers
-TMTR -> Themathar
-players become Avatars of history that.. does stuff with things from history
-they draw powers from themed assets 
--> theme + Avatar = Thematar (also short for "the mask that remembers")
+Question:
+Replay speed algorithm: "The more actions have been performed, the faster this will happen" - what's the scaling? Linear? Exponential? Any limits?
+Answer: The scaling shall be linear. Implement easily adjustable factors that can be tweaked during development. Also implement an easily adjustable maximum for how many actions are stored; it might be a good choice to only store the last X actions and replay those instead of every single action performed during a round.
 
-THOUGHT: this is a museum game -> maybe it could be an endless game? or maybe the goal should be always communicated and the only challenge to players is figure out how to achieve it by building on top of what the previous player did
+Question:
+Win condition: How does the game end? After all 16 cards are revealed? Or does it end when one player uncovers a matching pair (they get points but don't keep the pair)?
+Scoring/Winner: What determines the winner - who remembers the most card locations? Most pairs identified? Something else?
+Answer:
+The winner is the first player to flip all cards in one turn. If a player flips two cards that are not a pair, ALL cards are returned to their face down state.
 
-Gameplay idea: to make it easier to play cooperatively, maybe it's better if players can join in and are assigned a waiting slot, but they watch the active player(s) before them, what might make it easier to communicate how to get to a goal
+Question:
+Photo/Art pairing: For the placeholder phase (Red/Blue letters), I assume a "pair" is one Red 'A' and one Blue 'A'. When real assets arrive, do you have a system to link photo and art cards together, or should I design something for that now?
+Answer:
 
-the game is turn-based and asynchronous
 
-technical concept:
-a wordpress hosted site that stores information about players in queue and the currently active player.
-players have a limited amount of time to perform their actions.
-if a player's time is over, the next player in the queue may force them out and begin their turn.
-to implement this without a server, each time a player attempts to take action, the game client needs to check if they are still valid as acting player.
+Question:
+Lobby system: "All game lobbies are full" - what's the target player count per game and how many games can run simultaneously?
+Answer: The game can be played by 2 to 4 players. Since no server is needed and game progress is stored in the wordpress database, there is no limit on how many games can run in parallel. it shall not be possible to open a new lobby while existing lobbies are not full.
 
-a player may not become active player until X other players have acted. for starters, let's say at least two other players must have acted before a player can take the turn again.
+Question:
+Card grid: 4x4 = 16 cards = 8 pairs, correct?
+Anser: yes, correct
+
+Question:
+Visibility rules: During your turn, can you see which specific cards you flipped in previous turns, or only that some cards were flipped?
+Answer: During your turn, all cards look the same. During other player's turns, you can see which cards are flipped, but you cannot see the pictures on those cards even if they are face up. You can only see which cards were flipped and what pictures they showed while you watch the mask's memories, which you can do only once per turn.
+
+Question:
+Photo/Art pairing (still blank): For the placeholder phase with Red/Blue letters, should I just pair them randomly? When real assets come, who pairs the photo and art cards together - hardcoded in game data or a separate pairing file?
+
+Question:
+Card reveal timing: When a player flips 2 non-matching cards, do those cards stay momentarily visible so the player sees what they flipped, then flip back? Or flip back instantly?
+
+Qeustion:
+Lobby/joining: How do players create and join lobbies? Does the first player to connect create one? Can players see available lobbies and join?
+
+Question:
+Turn order: After a player flips two non-matching cards and loses their turn, is the next player always the one to the left/right, or does it rotate predictably?
+
+Question:
+Mask replay frequency: Can a player activate the mask multiple times during their turn, or only once?
+
+Question:
+Disconnection: What happens if the active player disconnects? Do they get the 5-second grace period before the next player takes over, or is it immediate?
+Answer: they get a 5 second grace period.
+
+Question:
+Game state storage: Should I design the WordPress data structure now (game state table, card positions, action history, player turns, etc.), or will that come with the backend integration?
+Answer: design it now
+
+Question:
+Card shuffle: Are card positions randomized each new game, or per-game fixed?
+Answer: Randomized each game. Since the game state is stored publicly in the wordpress database, cheating would technically be easy, but that can be ignored for this game.
+

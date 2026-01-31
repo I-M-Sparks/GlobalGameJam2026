@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WASM Test</title>
+</head>
+
+<body>
+    <h1>WASM Exports Test</h1>
+    <pre id="output"></pre>
+
+    <script type="module">
+        async function test() {
+            try {
+                console.log("Loading WASM...");
+                const response = await fetch('./themathar_game.wasm');
+                const { instance, module } = await WebAssembly.instantiateStreaming(response, {});
+                console.log("WASM loaded:", instance, module);
+                const exportsList = Object.keys(instance.exports || {});
+                document.getElementById('output').textContent = JSON.stringify({
+                    exports: exportsList
+                }, null, 2);
+            } catch (e) {
+                console.error("Error:", e);
+                document.getElementById('output').textContent = "Error: " + e.message + "\n" + e.stack;
+            }
+        }
+
+        test();
+    </script>
+</body>
+
+</html>

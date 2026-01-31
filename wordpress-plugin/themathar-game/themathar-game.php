@@ -31,7 +31,7 @@ register_deactivation_hook(__FILE__, function() {
 });
 
 // Initialize plugin
-add_action('plugins_loaded', function() {
+add_action('rest_api_init', function() {
     Themathar_REST_API::register_routes();
 });
 
