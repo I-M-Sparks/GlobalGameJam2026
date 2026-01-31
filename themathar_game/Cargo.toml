@@ -1,0 +1,44 @@
+[package]
+name = "themathar_game"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[[bin]]
+name = "themathar_game"
+path = "src/main.rs"
+
+[package.metadata.wasm]
+wasm-opt = false
+
+[dependencies]
+bevy = { version = "0.18", features = ["bevy_render", "bevy_ui", "bevy_text", "bevy_core_pipeline", "dynamic_linking"] }
+web-sys = { version = "0.3.64", features = ["Window", "Document", "HtmlElement", "console"] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+getrandom = { version = "0.2", features = ["js"] }
+gloo-net = { version = "0.2", features = ["http"] }
+gloo-console = "0.2"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+web-sys = { version = "0.3.64", features = ["Window", "Document", "HtmlElement", "console"] }
+wasm-bindgen-futures = "0.4"
+gloo-net = { version = "0.2", features = ["http"] }
+gloo-console = "0.2"
+
+[profile.dev]
+opt-level = 0
+split-debuginfo = "packed"
+
+[profile.release]
+opt-level = "z"
+lto = "thin"
+codegen-units = 1
+strip = true
