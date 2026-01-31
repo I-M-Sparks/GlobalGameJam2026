@@ -15,21 +15,25 @@ class Themathar_REST_API {
         error_log('Themathar_REST_API::register_routes called');
 
         // Lobby endpoints
-        register_rest_route(self::API_NAMESPACE, '/lobbies', array(
+        $result1 = register_rest_route(self::API_NAMESPACE, '/lobbies', array(
             'methods'  => 'GET',
             'callback' => function($request) {
+                error_log('GET /lobbies called');
                 return self::get_available_lobbies($request);
             },
             'permission_callback' => '__return_true',
         ));
+        error_log('GET /lobbies registered: ' . ($result1 ? 'true' : 'false'));
 
-        register_rest_route(self::API_NAMESPACE, '/lobbies', array(
+        $result2 = register_rest_route(self::API_NAMESPACE, '/lobbies', array(
             'methods'  => 'POST',
             'callback' => function($request) {
+                error_log('POST /lobbies called');
                 return self::create_lobby($request);
             },
             'permission_callback' => '__return_true',
         ));
+        error_log('POST /lobbies registered: ' . ($result2 ? 'true' : 'false'));
 
         register_rest_route(self::API_NAMESPACE, '/lobbies/(?P<lobby_id>\d+)', array(
             'methods'  => 'GET',
