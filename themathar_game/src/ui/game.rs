@@ -7,6 +7,7 @@ use std::path::Path;
 
 #[derive(Resource, Default)]
 struct PreloadedImages {
+    #[allow(dead_code)]
     handles: Vec<Handle<Image>>,
 }
 

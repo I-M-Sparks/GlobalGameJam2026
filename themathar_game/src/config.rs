@@ -5,8 +5,8 @@ pub const TOTAL_PAIRS: usize = 8; // 8 pairs per game (random selection)
 pub const TOTAL_CARDS: usize = TOTAL_PAIRS * 2; // 16 cards (4x4 grid)
 
 // UI dimensions
-pub const CARD_WIDTH: f32 = 150.0;
-pub const CARD_HEIGHT: f32 = 100.0;
+pub const CARD_WIDTH: f32 = 180.0;
+pub const CARD_HEIGHT: f32 = 120.0;
 pub const CARD_GAP: f32 = 15.0;
 pub const BOARD_PADDING: f32 = 30.0;
 pub const PLAYER_NAME_FONT_SIZE: f32 = 24.0;

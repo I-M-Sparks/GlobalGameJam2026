@@ -53,10 +53,7 @@ pub fn run_game() {
             .add_systems(OnExit(GameState::Credits), ui::cleanup::cleanup_ui)
             // Player setup - enter player names for hotseat multiplayer
             .add_systems(OnEnter(GameState::PlayerSetup), ui::player_setup::setup_player_setup)
-            .add_systems(Update, (
-                ui::player_setup::handle_player_setup,
-                ui::player_setup::update_input_focus,
-            ).run_if(in_state(GameState::PlayerSetup)))
+            .add_systems(Update, ui::player_setup::handle_player_setup.run_if(in_state(GameState::PlayerSetup)))
             .add_systems(OnExit(GameState::PlayerSetup), ui::cleanup::cleanup_ui)
             // Playing
             .add_systems(OnEnter(GameState::Playing), ui::game::setup_game)
