@@ -3,14 +3,20 @@ use crate::config::*;
 use crate::types::*;
 /// Main game UI and systems
 use bevy::prelude::*;
+use std::path::Path;
 
 fn get_pair_image_path(pair_folder: &str, card_type: CardType) -> String {
     let card_type_str = match card_type {
         CardType::Photo => "photo",
         CardType::Art => "art",
     };
-    // All assets use .jpeg extension (Bevy only accepts .jpeg for JPEG images)
-    format!("pairs/{}/{}.jpeg", pair_folder, card_type_str)
+    // Prefer existing on-disk extensions; fall back to .jpeg.
+    let base = format!("pairs/{}/{}", pair_folder, card_type_str);
+    let png_path = format!("assets/{}.png", base);
+    if Path::new(&png_path).exists() {
+        return format!("{}.png", base);
+    }
+    format!("{}.jpeg", base)
 }
 
 pub(crate) fn setup_game(
@@ -473,7 +479,7 @@ pub(crate) fn update_ui_display(
     mut status_query: Query<&mut Text, (With<GameStatusDisplay>, Without<TurnTimerDisplay>)>,
     mut button_query: Query<&mut BackgroundColor, With<MaskButton>>,
     session: Res<GameSession>,
-    local_player: Res<LocalPlayerSlot>,
+    _local_player: Res<LocalPlayerSlot>,
     lobby: Res<Lobby>,
 ) {
     for mut text in timer_query.iter_mut() {
@@ -565,7 +571,7 @@ pub(crate) fn update_replay_system(
     mut commands: Commands,
     memory_board_query: Query<Entity, With<MemoryBoard>>,
     children_query: Query<&Children>,
-    session: Res<GameSession>,
+    _session: Res<GameSession>,
 ) {
     if !replay.is_replaying {
         return;

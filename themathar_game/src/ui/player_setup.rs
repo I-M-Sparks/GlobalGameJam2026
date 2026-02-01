@@ -223,21 +223,33 @@ pub(crate) fn handle_player_setup(
                 // Initialize the board with 16 cards (8 pairs)
                 use rand::seq::SliceRandom;
                 use rand::Rng;
-                let mut rng = rand::thread_rng();
+                let mut rng = rand::rng();
                 let mut cards = Vec::new();
 
                 let excluded_pairs = ["A", "B", "C", "D", "E", "F", "G", "H"];
                 let mut available_pairs: Vec<String> = Vec::new();
 
-                if let Ok(entries) = std::fs::read_dir("assets/pairs") {
-                    for entry in entries.flatten() {
-                        if let Ok(file_type) = entry.file_type() {
-                            if file_type.is_dir() {
-                                let name = entry.file_name().to_string_lossy().to_string();
-                                if !excluded_pairs.contains(&name.as_str()) {
-                                    available_pairs.push(name);
+                // Try multiple possible paths for assets
+                let possible_paths = vec![
+                    "assets/pairs",
+                    "themathar_game/assets/pairs",
+                    "./assets/pairs",
+                ];
+
+                for path in &possible_paths {
+                    if let Ok(entries) = std::fs::read_dir(path) {
+                        for entry in entries.flatten() {
+                            if let Ok(file_type) = entry.file_type() {
+                                if file_type.is_dir() {
+                                    let name = entry.file_name().to_string_lossy().to_string();
+                                    if !excluded_pairs.contains(&name.as_str()) {
+                                        available_pairs.push(name);
+                                    }
                                 }
                             }
+                        }
+                        if !available_pairs.is_empty() {
+                            break; // Found assets, stop trying other paths
                         }
                     }
                 }
@@ -259,7 +271,7 @@ pub(crate) fn handle_player_setup(
                     );
                     let mut selected = available_pairs.clone();
                     while selected.len() < TOTAL_PAIRS && !available_pairs.is_empty() {
-                        let idx = rng.gen_range(0..available_pairs.len());
+                        let idx = rng.random_range(0..available_pairs.len());
                         selected.push(available_pairs[idx].clone());
                     }
                     selected
@@ -285,7 +297,7 @@ pub(crate) fn handle_player_setup(
 
                 // Shuffle cards
                 for i in (1..cards.len()).rev() {
-                    let j = rng.gen_range(0..=i);
+                    let j = rng.random_range(0..=i);
                     cards.swap(i, j);
                 }
 
