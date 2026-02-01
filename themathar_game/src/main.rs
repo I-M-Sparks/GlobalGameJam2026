@@ -24,6 +24,7 @@ pub fn run_game() {
             primary_window: Some(Window {
                 canvas: Some("#bevy-canvas".to_string()),
                 prevent_default_event_handling: false,
+                resolution: (1920, 1080).into(),  // Full HD for hotseat
                 ..default()
             }),
             ..default()
@@ -31,15 +32,13 @@ pub fn run_game() {
             .init_state::<GameState>()
             .init_resource::<Board>()
             .init_resource::<Lobby>()
-            .init_resource::<LobbiesList>()
             .init_resource::<GameSession>()
             .init_resource::<ReplaySystem>()
             .init_resource::<ReplayBoard>()
             .init_resource::<LocalPlayerSlot>()
             .init_resource::<HeartbeatState>()
             .init_resource::<PlayerName>()
-            .init_resource::<LobbyPollTimer>()
-            // Spawn camera once at startup (not in each UI state)
+            .init_resource::<ui::player_setup::PlayerSetupState>()
             .add_systems(Startup, spawn_camera)
             // Menu state
             .add_systems(OnEnter(GameState::Menu), ui::menu::setup_menu)
@@ -52,21 +51,13 @@ pub fn run_game() {
             .add_systems(OnEnter(GameState::Credits), ui::credits::setup_credits)
             .add_systems(Update, ui::credits::credits_input.run_if(in_state(GameState::Credits)))
             .add_systems(OnExit(GameState::Credits), ui::cleanup::cleanup_ui)
-            // Lobby browser
-            .add_systems(OnEnter(GameState::LobbyBrowser), ui::lobby_browser::setup_lobby_browser)
+            // Player setup - enter player names for hotseat multiplayer
+            .add_systems(OnEnter(GameState::PlayerSetup), ui::player_setup::setup_player_setup)
             .add_systems(Update, (
-                ui::lobby_browser::handle_lobby_browser,
-                ui::lobby_browser::update_input_focus,
-                ui::lobby_browser::poll_lobbies,
-            ).run_if(in_state(GameState::LobbyBrowser)))
-            .add_systems(OnExit(GameState::LobbyBrowser), ui::cleanup::cleanup_ui)
-            // Lobby waiting
-            .add_systems(OnEnter(GameState::LobbyWaiting), ui::lobby_waiting::setup_lobby_waiting)
-            .add_systems(Update, (
-                ui::lobby_waiting::handle_lobby_waiting,
-                ui::lobby_waiting::update_player_display,
-            ).run_if(in_state(GameState::LobbyWaiting)))
-            .add_systems(OnExit(GameState::LobbyWaiting), ui::cleanup::cleanup_ui)
+                ui::player_setup::handle_player_setup,
+                ui::player_setup::update_input_focus,
+            ).run_if(in_state(GameState::PlayerSetup)))
+            .add_systems(OnExit(GameState::PlayerSetup), ui::cleanup::cleanup_ui)
             // Playing
             .add_systems(OnEnter(GameState::Playing), ui::game::setup_game)
             .add_systems(Update, (

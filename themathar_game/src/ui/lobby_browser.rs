@@ -431,25 +431,130 @@ async fn fetch_lobbies_from_backend() -> Result<Vec<LobbyInfo>, String> {
         return Err(format!("HTTP {}", resp.status()));
     }
     
-    // For now, return empty since parsing JSON from web-sys is complex
-    // The WordPress API should be called, but we'll just log the attempt
-    bevy::log::info!("📡 Backend fetch called (response OK)");
-    Ok(Vec::new())
+    // Parse JSON response
+    let json_promise = resp.json().map_err(|_| "JSON parse failed".to_string())?;
+    let json_value = JsFuture::from(json_promise)
+        .await
+        .map_err(|_| "JSON await failed".to_string())?;
+    
+    // Extract lobbies array from response
+    use web_sys::js_sys::{Object, Reflect};
+    
+    // Get the success field
+    let success = Reflect::get(&json_value, &"success".into())
+        .ok()
+        .and_then(|v| if v.is_truthy() { Some(true) } else { Some(false) });
+    
+    if !success.unwrap_or(false) {
+        bevy::log::warn!("📡 Backend returned success=false");
+        return Ok(Vec::new());
+    }
+    
+    // Get the lobbies array
+    let lobbies_array = Reflect::get(&json_value, &"lobbies".into())
+        .map_err(|_| "No lobbies field".to_string())?;
+    
+    if !lobbies_array.is_array() {
+        bevy::log::warn!("📡 Lobbies field is not an array");
+        return Ok(Vec::new());
+    }
+    
+    let array_length = Reflect::get(&lobbies_array, &"length".into())
+        .ok()
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0) as usize;
+    
+    let mut lobbies = Vec::new();
+    
+    for i in 0..array_length {
+        if let Ok(lobby_obj) = Reflect::get(&lobbies_array, &(i as f64).into()) {
+            let id = Reflect::get(&lobby_obj, &"id".into())
+                .ok()
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0) as usize;
+            let player_count = Reflect::get(&lobby_obj, &"player_count".into())
+                .ok()
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0) as usize;
+            
+            lobbies.push(LobbyInfo {
+                id,
+                player_count,
+                max_players: 4,
+            });
+        }
+    }
+    
+    bevy::log::info!("📡 Backend returned {} lobbies", lobbies.len());
+    Ok(lobbies)
 }
 
 #[cfg(target_arch = "wasm32")]
 async fn create_lobby_on_backend(player_name: &str) -> Result<usize, String> {
-    use web_sys::window;
+    use web_sys::{window, Request, RequestInit, RequestMode};
     use wasm_bindgen_futures::JsFuture;
+    use wasm_bindgen::JsCast;
     
     let window = window().ok_or("No window")?;
     let base_url = get_wordpress_base_url();
     let api_url = format!("{}/wp-json/themathar/v1/lobbies", base_url);
     
     bevy::log::debug!("📡 Creating lobby on backend with player: {}", player_name);
-    bevy::log::info!("✅ Lobby creation sent to backend at {}", api_url);
     
-    // In a real implementation, we would make a POST request here
-    // For now, just log that we attempted to create it
-    Ok(1)
+    // Create POST body with player name
+    let body = format!(r#"{{"player_name": "{}"}}"#, player_name);
+    
+    // Set up fetch options
+    let mut opts = RequestInit::new();
+    opts.method("POST");
+    opts.mode(RequestMode::Cors);
+    opts.body(Some(&body.into()));
+    
+    // Add Content-Type header
+    let req = Request::new_with_str_and_init(&api_url, &opts)
+        .map_err(|_| "Failed to create request".to_string())?;
+    
+    let headers = req.headers();
+    headers.set("Content-Type", "application/json")
+        .map_err(|_| "Failed to set Content-Type".to_string())?;
+    
+    // Send the request
+    let resp_promise = window.fetch_with_request(&req);
+    let resp = JsFuture::from(resp_promise)
+        .await
+        .map_err(|_| "Fetch failed".to_string())?;
+    
+    // Check if response is ok
+    let resp: web_sys::Response = resp.unchecked_into();
+    
+    if !resp.ok() {
+        return Err(format!("API returned status {}", resp.status()));
+    }
+    
+    // Parse JSON response
+    let json_promise = resp.json()
+        .map_err(|_| "Failed to get JSON".to_string())?;
+    
+    let json_value = JsFuture::from(json_promise)
+        .await
+        .map_err(|_| "Failed to parse JSON".to_string())?;
+    
+    // Extract lobby_id from response
+    use js_sys::Reflect;
+    let success = Reflect::get(&json_value, &"success".into())
+        .ok()
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    
+    if !success {
+        return Err("Backend returned success=false".to_string());
+    }
+    
+    let lobby_id = Reflect::get(&json_value, &"lobby_id".into())
+        .ok()
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0) as usize;
+    
+    bevy::log::info!("✅ Lobby synced to backend with ID={}", lobby_id);
+    Ok(lobby_id)
 }

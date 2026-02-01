@@ -6,24 +6,13 @@ use bevy::prelude::*;
 #[derive(Resource, Default)]
 pub struct PlayerName(pub String);
 
-/// Lobby polling timer
-#[derive(Resource)]
-pub struct LobbyPollTimer(pub f32);
-
-impl Default for LobbyPollTimer {
-    fn default() -> Self {
-        LobbyPollTimer(0.0)
-    }
-}
-
 /// Top-level game state
 #[derive(States, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum GameState {
     #[default]
     Menu,
-    Credits,    
-    LobbyBrowser,
-    LobbyWaiting,
+    Credits,
+    PlayerSetup,  // Enter player names (1-4 players) for hotseat multiplayer
     Playing,
     GameOver,
 }

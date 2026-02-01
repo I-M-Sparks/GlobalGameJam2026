@@ -106,7 +106,7 @@ pub(crate) fn handle_game_over(
 ) {
     for interaction in &play_again_query {
         if *interaction == Interaction::Pressed {
-            next_state.set(GameState::LobbyWaiting);
+            next_state.set(GameState::Menu);
         }
     }
 

@@ -105,7 +105,7 @@ pub(crate) fn menu_input(
 ) {
     for interaction in &interaction_query {
         if *interaction == Interaction::Pressed {
-            next_state.set(GameState::LobbyBrowser);
+            next_state.set(GameState::PlayerSetup);
         }
     }
 }

@@ -83,18 +83,23 @@ Answer: During your turn, all cards look the same. During other player's turns, 
 
 Question:
 Photo/Art pairing (still blank): For the placeholder phase with Red/Blue letters, should I just pair them randomly? When real assets come, who pairs the photo and art cards together - hardcoded in game data or a separate pairing file?
+Answer: Create a folder called "pairs". In that folder, there will be one folder per pair. In that folder, there will be only two image files, one called "art", the other called "photo". This shall be identical for ALL pairs. The name of the folder where the pair's images are located shall define the pair's name.
 
 Question:
 Card reveal timing: When a player flips 2 non-matching cards, do those cards stay momentarily visible so the player sees what they flipped, then flip back? Or flip back instantly?
+Answer: whenever a card is flipped, the remain face up for X seconds. make X easily adjustable so that it can be tweaked during development.
 
 Qeustion:
 Lobby/joining: How do players create and join lobbies? Does the first player to connect create one? Can players see available lobbies and join?
+Answer: Players can only see lobbies that are not full. If no lobby is free, a player can create one. If a player leaves a game, that game's lobby shall become visible too. Do not show full lobbies. A game may be started with less than 4 players if all players who joined the lobby mark themselves as ready.
 
 Question:
 Turn order: After a player flips two non-matching cards and loses their turn, is the next player always the one to the left/right, or does it rotate predictably?
+Answer: the order of players is fixed; the order is player 1 -> player 2 -> player 3 -> player 4 -> player 1. If any player leaves the game, they are simply skipped in that order.
 
 Question:
 Mask replay frequency: Can a player activate the mask multiple times during their turn, or only once?
+Answer: the mask can be activated only and exactly once per turn
 
 Question:
 Disconnection: What happens if the active player disconnects? Do they get the 5-second grace period before the next player takes over, or is it immediate?
@@ -108,3 +113,35 @@ Question:
 Card shuffle: Are card positions randomized each new game, or per-game fixed?
 Answer: Randomized each game. Since the game state is stored publicly in the wordpress database, cheating would technically be easy, but that can be ignored for this game.
 
+Ready flag UI: In the lobby, how do players mark themselves as ready? A button? Does it require confirmation, or can they toggle it?
+Answer: After a player joins the lobby of a game that has not yet started, they can press a button to signal being ready to start without there being 4 players. After 4 players have joined the lobby the ready-state is forced and the game starts anyway.
+
+Card flip mechanics: When a player flips two cards, do they appear face-up simultaneously, or one-at-a-time? And when they don't match and flip back after X seconds, is this automatic or does the player click to dismiss?
+Anser: Cards are flipped one-at-a-time. The cards flipping back happens automatically without player Input.
+
+Action history for mask: What counts as an "action" for replay? Just card flips (position + what was revealed)? Or also mask activations, timer events, etc.?
+Answer: only cards flips shall be replayed. When a player starts the replay, they first see a second "memory board", which is an identical copy of the original board. all card flips of the replay are performed on that memory baord. 3 seconds (make this easily adjustable) after the replay is complete, the original board shall be shown again, in the same state it was in when the player started the replay.
+
+Mask replay visibility: During mask replay, can the active player see the actual pictures on the cards that other players flipped, or just watch cards flip without seeing their contents?
+Answer: During the replay the player can see the actual pictures. This is the only way a player can learn from other player's moves and an essential element of this version of memory.
+
+Replay speed formula: "Linear" scaling - what's the calculation? For example: speed = base_speed * (num_actions / max_actions), or something else? What should min/max speed be?
+Answer: The calculation is as follows: The total time of the replay is 10 seconds (make this easily adjustable). The formuale is: card_flip_interval = total_time_of_replay / number_of_card_flips; as example, if 10 cards flips are performed and the replay lasts 10 seconds, then one card flip per second happens. flipped cards remain face up until the replay is over. Add 3 seconds (make this easily adjustable) of After-replay time, during which nothing happens, so that a player has a short period to memorize all face up cards.
+
+Card shuffle: Should the shuffled card layout be determined client-side or server-side (WordPress)? Who initializes the game state?
+Answer: Any player in a lobby may press start; this shall trigger a "server-side" card shuffle and set up the board
+
+Win/end state: When a player wins by flipping all cards, what happens? Game ends immediately? Show winner screen? Replay option?
+Answer: A message shall appear to all players announcing the winner. Beneath that there shall be two buttons: 'Play Again' and 'Leave'. Play again will reset the game to it's lobby state. Leave shall bring a player back to the start page, where they might join a different lobby.
+
+Player info storage: What player data needs persisting in WordPress? (name, ID, join order, turn count, etc.)
+Answer: Players shall choose a name to be displayed; the name needs to be stored. Since players can join and leave lobbies/games as they wish, their spot does not need to be stored, meaning a player can join a lobby as player 2, leave the game, and later return as player 4. No other information about a player is currently planned. It's much more important that the replay function during a game functions well.
+
+Player reconnection: If a player refreshes their browser mid-game, do they automatically rejoin the same game, or go back to lobby selection?
+Answer: refreshing shall not kick a player out of a game, they should return to the same game.
+
+Player visual distinction: In the UI, should players be visually distinguished (colors, positions, avatars)? Or just names?
+Answer: they should be visually distinguished by position: their names shall appear on the center-left, center-top, center-right and center-bottom of the screen. the currently active player shall be highlighted; the order of players shall be layed out clockwise.
+
+Placeholder assets: For the Red/Blue letter cards during development, should I generate all 26 letters (A-Z) as pairs, or just a subset like A-H for 8 pairs?
+Answer: A-H shall suffice for now; if I need more I will take care of it later
