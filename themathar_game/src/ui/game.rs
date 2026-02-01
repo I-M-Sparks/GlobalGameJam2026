@@ -5,6 +5,11 @@ use crate::types::*;
 use bevy::prelude::*;
 use std::path::Path;
 
+#[derive(Resource, Default)]
+struct PreloadedImages {
+    handles: Vec<Handle<Image>>,
+}
+
 fn get_pair_image_path(pair_folder: &str, card_type: CardType) -> String {
     let card_type_str = match card_type {
         CardType::Photo => "photo",
@@ -25,6 +30,19 @@ pub(crate) fn setup_game(
     lobby: Res<Lobby>,
     asset_server: Res<AssetServer>,
 ) {
+    let grid_width = CARD_WIDTH * 4.0 + CARD_GAP * 3.0 + BOARD_PADDING * 2.0;
+    let grid_height = CARD_HEIGHT * 4.0 + CARD_GAP * 3.0 + BOARD_PADDING * 2.0;
+
+    let mut preload_handles: Vec<Handle<Image>> = Vec::new();
+    for pair_folder in board.pair_folders.iter() {
+        for card_type in [CardType::Photo, CardType::Art] {
+            let image_path = get_pair_image_path(pair_folder, card_type);
+            preload_handles.push(asset_server.load(&image_path));
+        }
+    }
+    commands.insert_resource(PreloadedImages {
+        handles: preload_handles,
+    });
     // Get player names from lobby (up to 4 players)
     let player_names: Vec<String> = (1..=4)
         .map(|slot| {
@@ -126,9 +144,9 @@ pub(crate) fn setup_game(
                     left: Val::Percent(50.0),
                     top: Val::Percent(50.0),
                     margin: UiRect {
-                        left: Val::Px(-367.5), // Half of grid size: (150*4 + 15*3 + 30*2) / 2 = 735 / 2
+                        left: Val::Px(-grid_width / 2.0),
                         right: Val::Auto,
-                        top: Val::Px(-367.5),
+                        top: Val::Px(-grid_height / 2.0),
                         bottom: Val::Auto,
                     },
                     ..default()

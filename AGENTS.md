@@ -143,6 +143,7 @@ Menu (loop back)
 - **Resolution**: Game window is 1920×1080 for full-screen hotseat gameplay
 - **Release Mode**: Use `--release` for optimized builds (faster execution, smaller binary)
 - **Dependency Policy**: Keep the logic as Bevy-focused as possible. Do not introduce additional dependencies if Bevy has a solution for the problem.
+- **A-H Placeholder Folders**: The textures for letters A-H are only placeholders for debugging and should not make it into the game. The game randomly selects 8 pairs from the remaining museum/collection folders, strictly excluding A-H.
 
 ## Testing Workflow
 
