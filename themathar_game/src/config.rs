@@ -1,7 +1,7 @@
 /// Game configuration and adjustable parameters
 
 // Board dimensions
-pub const TOTAL_PAIRS: usize = 8; // 8 pairs (A-H)
+pub const TOTAL_PAIRS: usize = 8; // 8 pairs per game (random selection)
 pub const TOTAL_CARDS: usize = TOTAL_PAIRS * 2; // 16 cards (4x4 grid)
 
 // UI dimensions

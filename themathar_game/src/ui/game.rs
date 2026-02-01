@@ -1,11 +1,24 @@
 use super::cleanup::UIRoot;
-use crate::board;
 use crate::config::*;
 use crate::types::*;
 /// Main game UI and systems
 use bevy::prelude::*;
 
-pub(crate) fn setup_game(mut commands: Commands, board: Res<Board>, lobby: Res<Lobby>) {
+fn get_pair_image_path(pair_folder: &str, card_type: CardType) -> String {
+    let card_type_str = match card_type {
+        CardType::Photo => "photo",
+        CardType::Art => "art",
+    };
+    // All assets use .jpeg extension (Bevy only accepts .jpeg for JPEG images)
+    format!("pairs/{}/{}.jpeg", pair_folder, card_type_str)
+}
+
+pub(crate) fn setup_game(
+    mut commands: Commands,
+    board: Res<Board>,
+    lobby: Res<Lobby>,
+    asset_server: Res<AssetServer>,
+) {
     // Get player names from lobby (up to 4 players)
     let player_names: Vec<String> = (1..=4)
         .map(|slot| {
@@ -134,6 +147,15 @@ pub(crate) fn setup_game(mut commands: Commands, board: Res<Board>, lobby: Res<L
                             // Spawn 16 card entities
                             for position in 0..TOTAL_CARDS {
                                 let card = board.card_at(position).unwrap();
+
+                                // Construct image path based on pair_id and card_type
+                                let pair_folder = board
+                                    .pair_folders
+                                    .get(card.pair_id)
+                                    .map(|name| name.as_str())
+                                    .unwrap_or("A");
+                                let image_path = get_pair_image_path(pair_folder, card.card_type);
+
                                 parent
                                     .spawn((
                                         Button,
@@ -148,17 +170,33 @@ pub(crate) fn setup_game(mut commands: Commands, board: Res<Board>, lobby: Res<L
                                         CardVisual { position },
                                     ))
                                     .with_children(|parent| {
+                                        // Image - shown when face-up
                                         parent.spawn((
-                                            Text::new(if card.is_face_up {
-                                                board::get_pair_name(card.pair_id)
-                                            } else {
-                                                "?".to_string()
-                                            }),
+                                            ImageNode::new(asset_server.load(&image_path)),
+                                            Node {
+                                                width: Val::Percent(100.0),
+                                                height: Val::Percent(100.0),
+                                                justify_content: JustifyContent::Center,
+                                                align_items: AlignItems::Center,
+                                                ..default()
+                                            },
+                                            Visibility::Hidden, // Start hidden, will be shown when face-up
+                                        ));
+
+                                        // "?" text - shown when face-down
+                                        parent.spawn((
+                                            Text::new("?".to_string()),
                                             TextFont {
                                                 font_size: 40.0,
                                                 ..default()
                                             },
                                             TextColor(Color::WHITE),
+                                            Node {
+                                                justify_content: JustifyContent::Center,
+                                                align_items: AlignItems::Center,
+                                                ..default()
+                                            },
+                                            Visibility::Visible, // Start visible (face-down)
                                         ));
                                     });
                             }
@@ -479,6 +517,7 @@ pub(crate) fn handle_mask_activation(
     mut replay: ResMut<ReplaySystem>,
     mut session: ResMut<GameSession>,
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
 ) {
     for interaction in &interaction_query {
         if *interaction == Interaction::Pressed {
@@ -504,7 +543,7 @@ pub(crate) fn handle_mask_activation(
                 })
                 .collect();
 
-            spawn_memory_board(&mut commands, &replay_board);
+            spawn_memory_board(&mut commands, &replay_board, &board, &asset_server);
 
             // Start replay
             replay.is_replaying = true;
@@ -567,21 +606,34 @@ pub(crate) fn update_replay_system(
 pub(crate) fn update_card_visuals(
     board: Res<Board>,
     card_query: Query<(&CardVisual, &Children)>,
-    mut text_query: Query<&mut Text>,
-    session: Res<GameSession>,
+    mut visibility_query: Query<&mut Visibility>,
 ) {
     // In hotseat mode, all players see the same board
 
     for (card_visual, children) in &card_query {
         if let Some(card) = board.card_at(card_visual.position) {
-            for child in children.iter() {
-                if let Ok(mut text) = text_query.get_mut(child) {
-                    // Show card face if it's face up (all players see the same)
-                    text.0 = if card.is_face_up {
-                        board::get_pair_name(card.pair_id)
-                    } else {
-                        "?".to_string()
-                    };
+            // Toggle visibility of child elements (image and "?" text)
+            for (i, child) in children.iter().enumerate() {
+                if let Ok(mut vis) = visibility_query.get_mut(child) {
+                    match i {
+                        0 => {
+                            // First child is ImageNode - show when face-up
+                            *vis = if card.is_face_up {
+                                Visibility::Visible
+                            } else {
+                                Visibility::Hidden
+                            };
+                        }
+                        1 => {
+                            // Second child is "?" text - show when face-down
+                            *vis = if card.is_face_up {
+                                Visibility::Hidden
+                            } else {
+                                Visibility::Visible
+                            };
+                        }
+                        _ => {}
+                    }
                 }
             }
         }
@@ -592,8 +644,8 @@ pub(crate) fn update_memory_board_visuals(
     replay: Res<ReplaySystem>,
     replay_board: Res<ReplayBoard>,
     card_query: Query<(&MemoryCardVisual, &Children)>,
-    mut text_query: Query<&mut Text>,
-    session: Res<GameSession>,
+    mut visibility_query: Query<&mut Visibility>,
+    _session: Res<GameSession>,
 ) {
     if !replay.is_replaying {
         return;
@@ -607,20 +659,39 @@ pub(crate) fn update_memory_board_visuals(
             .iter()
             .find(|c| c.position == card_visual.position)
         {
-            for child in children.iter() {
-                if let Ok(mut text) = text_query.get_mut(child) {
-                    text.0 = if card.is_face_up {
-                        board::get_pair_name(card.pair_id)
-                    } else {
-                        "?".to_string()
-                    };
+            for (i, child) in children.iter().enumerate() {
+                if let Ok(mut vis) = visibility_query.get_mut(child) {
+                    match i {
+                        0 => {
+                            // First child is ImageNode - show when face-up
+                            *vis = if card.is_face_up {
+                                Visibility::Visible
+                            } else {
+                                Visibility::Hidden
+                            };
+                        }
+                        1 => {
+                            // Second child is "?" text - show when face-down
+                            *vis = if card.is_face_up {
+                                Visibility::Hidden
+                            } else {
+                                Visibility::Visible
+                            };
+                        }
+                        _ => {}
+                    }
                 }
             }
         }
     }
 }
 
-fn spawn_memory_board(commands: &mut Commands, replay_board: &ReplayBoard) {
+fn spawn_memory_board(
+    commands: &mut Commands,
+    replay_board: &ReplayBoard,
+    board: &Board,
+    asset_server: &AssetServer,
+) {
     commands
         .spawn((
             Node {
@@ -651,6 +722,14 @@ fn spawn_memory_board(commands: &mut Commands, replay_board: &ReplayBoard) {
                 })
                 .with_children(|parent| {
                     for card in replay_board.cards.iter() {
+                        // Construct image path based on pair_id
+                        let pair_folder = board
+                            .pair_folders
+                            .get(card.pair_id)
+                            .map(|name| name.as_str())
+                            .unwrap_or("A");
+                        let image_path = get_pair_image_path(pair_folder, card.card_type);
+
                         parent
                             .spawn((
                                 Node {
@@ -666,6 +745,20 @@ fn spawn_memory_board(commands: &mut Commands, replay_board: &ReplayBoard) {
                                 },
                             ))
                             .with_children(|parent| {
+                                // Image - shown when face-up
+                                parent.spawn((
+                                    ImageNode::new(asset_server.load(&image_path)),
+                                    Node {
+                                        width: Val::Percent(100.0),
+                                        height: Val::Percent(100.0),
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        ..default()
+                                    },
+                                    Visibility::Hidden, // Will be shown based on card state
+                                ));
+
+                                // "?" text - shown when face-down
                                 parent.spawn((
                                     Text::new("?"),
                                     TextFont {
@@ -673,6 +766,12 @@ fn spawn_memory_board(commands: &mut Commands, replay_board: &ReplayBoard) {
                                         ..default()
                                     },
                                     TextColor(Color::WHITE),
+                                    Node {
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        ..default()
+                                    },
+                                    Visibility::Visible,
                                 ));
                             });
                     }

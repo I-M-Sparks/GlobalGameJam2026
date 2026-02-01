@@ -1,8 +1,7 @@
-/// Credits UI
-
-use bevy::prelude::*;
-use crate::types::GameState;
 use super::cleanup::UIRoot;
+use crate::types::GameState;
+/// Credits UI
+use bevy::prelude::*;
 
 pub(crate) fn setup_credits(mut commands: Commands) {
     commands
@@ -34,9 +33,9 @@ pub(crate) fn setup_credits(mut commands: Commands) {
             parent.spawn((
                 Text::new(
                     "Photo Material Provided By:\n\n\
-                    Haus der Geschichte Baden-Württemberg\n\
-                    Deutsches Fleischerei Museum Böblingen\n\
-                    Stadtmuseum Hornmoldhaus Bietigheim-Bissingen"
+                    Haus der Geschichte Baden-Wuerttemberg\n\
+                    Deutsches Fleischerei Museum Boeblingen\n\
+                    Stadtmuseum Hornmoldhaus Bietigheim-Bissingen",
                 ),
                 TextFont {
                     font_size: 24.0,

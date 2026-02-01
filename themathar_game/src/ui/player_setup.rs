@@ -1,4 +1,5 @@
 use super::cleanup::UIRoot;
+use crate::config::TOTAL_PAIRS;
 use crate::types::{Board, BoardState, Card, CardType, GameSession, GameState, Lobby, Player};
 /// Player setup screen - enter 1-4 player names for hotseat multiplayer
 use bevy::prelude::*;
@@ -220,21 +221,66 @@ pub(crate) fn handle_player_setup(
                 bevy::log::info!("🎮 Starting hotseat game with {} players", player_count);
 
                 // Initialize the board with 16 cards (8 pairs)
+                use rand::seq::SliceRandom;
                 use rand::Rng;
                 let mut rng = rand::thread_rng();
                 let mut cards = Vec::new();
 
-                // Create 8 pairs (16 cards total)
-                for pair_id in 0..8 {
-                    for _card_idx in 0..2 {
-                        cards.push(Card {
-                            position: 0, // Will be set after shuffle
-                            pair_id,
-                            card_type: CardType::Photo,
-                            is_face_up: false,
-                            visibility_timer: 0.0,
-                        });
+                let excluded_pairs = ["A", "B", "C", "D", "E", "F", "G", "H"];
+                let mut available_pairs: Vec<String> = Vec::new();
+
+                if let Ok(entries) = std::fs::read_dir("assets/pairs") {
+                    for entry in entries.flatten() {
+                        if let Ok(file_type) = entry.file_type() {
+                            if file_type.is_dir() {
+                                let name = entry.file_name().to_string_lossy().to_string();
+                                if !excluded_pairs.contains(&name.as_str()) {
+                                    available_pairs.push(name);
+                                }
+                            }
+                        }
                     }
+                }
+
+                if available_pairs.is_empty() {
+                    bevy::log::warn!(
+                        "No non A-H pair folders found in assets/pairs. Images may be missing."
+                    );
+                }
+
+                available_pairs.shuffle(&mut rng);
+                let selected_pairs: Vec<String> = if available_pairs.len() >= TOTAL_PAIRS {
+                    available_pairs.into_iter().take(TOTAL_PAIRS).collect()
+                } else {
+                    bevy::log::warn!(
+                        "Only {} non A-H pairs found. Reusing pairs to reach {}.",
+                        available_pairs.len(),
+                        TOTAL_PAIRS
+                    );
+                    let mut selected = available_pairs.clone();
+                    while selected.len() < TOTAL_PAIRS && !available_pairs.is_empty() {
+                        let idx = rng.gen_range(0..available_pairs.len());
+                        selected.push(available_pairs[idx].clone());
+                    }
+                    selected
+                };
+
+                // Create 8 pairs (16 cards total), one Photo + one Art per pair
+                for pair_id in 0..TOTAL_PAIRS {
+                    cards.push(Card {
+                        position: 0, // Will be set after shuffle
+                        pair_id,
+                        card_type: CardType::Photo,
+                        is_face_up: false,
+                        visibility_timer: 0.0,
+                    });
+                    cards.push(Card {
+                        position: 0, // Will be set after shuffle
+                        pair_id,
+                        card_type: CardType::Art,
+                        is_face_up: false,
+                        visibility_timer: 0.0,
+                    });
                 }
 
                 // Shuffle cards
@@ -248,7 +294,10 @@ pub(crate) fn handle_player_setup(
                     card.position = idx;
                 }
 
-                let board = Board { cards };
+                let board = Board {
+                    cards,
+                    pair_folders: selected_pairs,
+                };
                 commands.insert_resource(board);
 
                 // Initialize game session

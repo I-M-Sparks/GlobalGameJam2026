@@ -1,5 +1,4 @@
 /// Game state types and enums
-
 use bevy::prelude::*;
 
 /// Player name resource
@@ -12,7 +11,7 @@ pub enum GameState {
     #[default]
     Menu,
     Credits,
-    PlayerSetup,  // Enter player names (1-4 players) for hotseat multiplayer
+    PlayerSetup, // Enter player names (1-4 players) for hotseat multiplayer
     Playing,
     GameOver,
 }
@@ -20,11 +19,11 @@ pub enum GameState {
 /// Card data
 #[derive(Component, Clone, Debug)]
 pub struct Card {
-    pub position: usize,        // 0-15 grid position
-    pub pair_id: usize,         // 0-7 (8 pairs)
-    pub card_type: CardType,    // Photo or Art
+    pub position: usize,     // 0-15 grid position
+    pub pair_id: usize,      // 0-7 (8 pairs)
+    pub card_type: CardType, // Photo or Art
     pub is_face_up: bool,
-    pub visibility_timer: f32,  // How long to remain face-up
+    pub visibility_timer: f32, // How long to remain face-up
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -46,11 +45,15 @@ impl CardType {
 #[derive(Resource, Default)]
 pub struct Board {
     pub cards: Vec<Card>,
+    pub pair_folders: Vec<String>,
 }
 
 impl Board {
     pub fn new(layout: Vec<Card>) -> Self {
-        Board { cards: layout }
+        Board {
+            cards: layout,
+            pair_folders: Vec::new(),
+        }
     }
 
     pub fn card_at(&self, position: usize) -> Option<&Card> {
@@ -71,7 +74,7 @@ impl Board {
 pub struct Player {
     pub id: usize,
     pub name: String,
-    pub slot: usize,              // 1-4 (turn order)
+    pub slot: usize, // 1-4 (turn order)
     pub is_ready: bool,
     pub has_used_mask: bool,
     pub turn_start_time: Option<f32>, // Game time when turn started
@@ -125,12 +128,12 @@ pub struct GameSession {
     pub lobby_id: usize,
     pub active_player_slot: usize, // Current player's slot (1-4)
     pub turn_number: usize,
-    pub game_time: f32, // Time elapsed in game
+    pub game_time: f32,           // Time elapsed in game
     pub winner_id: Option<usize>, // Player slot of winner
     pub board_state: BoardState,
     pub mask_used_this_turn: bool,
-    pub turn_started_at: f32, // Game time when this turn started
-    pub turn_timeout_at: f32, // When turn expires (60s from start)
+    pub turn_started_at: f32,      // Game time when this turn started
+    pub turn_timeout_at: f32,      // When turn expires (60s from start)
     pub grace_period_ends_at: f32, // When 5s grace period ends (65s from start)
 }
 
@@ -139,7 +142,7 @@ pub struct BoardState {
     pub current_turn_flips: Vec<usize>, // Card positions flipped this turn (max 2)
     pub last_flip_time: f32,            // When last card was flipped
     pub pair_match_result: Option<bool>, // None = not checked yet, Some(true) = match, Some(false) = no match
-    pub pair_check_delay: f32,          // Delay before executing turn-end behavior (for visual feedback)
+    pub pair_check_delay: f32, // Delay before executing turn-end behavior (for visual feedback)
 }
 
 /// Card flip action (for replay)
