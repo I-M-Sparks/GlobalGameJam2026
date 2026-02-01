@@ -30,9 +30,14 @@ pub(crate) fn setup_credits(mut commands: Commands) {
                 TextColor(Color::srgb(1.0, 0.8, 0.2)),
             ));
 
-            // Credits content (empty for now)
+            // Credits content
             parent.spawn((
-                Text::new(""),
+                Text::new(
+                    "Photo Material Provided By:\n\n\
+                    Haus der Geschichte Baden-Württemberg\n\
+                    Deutsches Fleischerei Museum Böblingen\n\
+                    Stadtmuseum Hornmoldhaus Bietigheim-Bissingen"
+                ),
                 TextFont {
                     font_size: 24.0,
                     ..default()
