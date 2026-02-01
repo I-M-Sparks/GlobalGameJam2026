@@ -6,10 +6,12 @@ use bevy::prelude::*;
 use std::path::Path;
 
 #[derive(Resource, Default)]
-struct PreloadedImages {
-    #[allow(dead_code)]
-    handles: Vec<Handle<Image>>,
+pub struct PreloadedImages {
+    pub handles: Vec<Handle<Image>>,
 }
+
+#[derive(Component)]
+struct LoadingText;
 
 fn get_pair_image_path(pair_folder: &str, card_type: CardType) -> String {
     let card_type_str = match card_type {
@@ -25,15 +27,12 @@ fn get_pair_image_path(pair_folder: &str, card_type: CardType) -> String {
     format!("{}.jpeg", base)
 }
 
-pub(crate) fn setup_game(
+pub(crate) fn setup_loading(
     mut commands: Commands,
     board: Res<Board>,
-    lobby: Res<Lobby>,
     asset_server: Res<AssetServer>,
 ) {
-    let grid_width = CARD_WIDTH * 4.0 + CARD_GAP * 3.0 + BOARD_PADDING * 2.0;
-    let grid_height = CARD_HEIGHT * 4.0 + CARD_GAP * 3.0 + BOARD_PADDING * 2.0;
-
+    // Preload all card images
     let mut preload_handles: Vec<Handle<Image>> = Vec::new();
     for pair_folder in board.pair_folders.iter() {
         for card_type in [CardType::Photo, CardType::Art] {
@@ -44,6 +43,70 @@ pub(crate) fn setup_game(
     commands.insert_resource(PreloadedImages {
         handles: preload_handles,
     });
+
+    // Show loading UI
+    commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                row_gap: Val::Px(20.0),
+                ..default()
+            },
+            BackgroundColor(Color::srgb(0.1, 0.1, 0.2)),
+            UIRoot,
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("LOADING ASSETS..."),
+                TextFont {
+                    font_size: 60.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(1.0, 0.8, 0.2)),
+                LoadingText,
+            ));
+
+            parent.spawn((
+                Text::new("Please wait while images are loaded"),
+                TextFont {
+                    font_size: 24.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.7, 0.7, 0.7)),
+            ));
+        });
+}
+
+pub(crate) fn check_loading_complete(
+    preloaded: Res<PreloadedImages>,
+    asset_server: Res<AssetServer>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    // Check if all handles are loaded
+    let all_loaded = preloaded
+        .handles
+        .iter()
+        .all(|handle| asset_server.is_loaded_with_dependencies(handle.id()));
+
+    if all_loaded {
+        bevy::log::info!("✅ All assets loaded, starting game");
+        next_state.set(GameState::Playing);
+    }
+}
+
+pub(crate) fn setup_game(
+    mut commands: Commands,
+    board: Res<Board>,
+    lobby: Res<Lobby>,
+    asset_server: Res<AssetServer>,
+) {
+    let grid_width = CARD_WIDTH * 4.0 + CARD_GAP * 3.0 + BOARD_PADDING * 2.0;
+    let grid_height = CARD_HEIGHT * 4.0 + CARD_GAP * 3.0 + BOARD_PADDING * 2.0;
+
     // Get player names from lobby (up to 4 players)
     let player_names: Vec<String> = (1..=4)
         .map(|slot| {

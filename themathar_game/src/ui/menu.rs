@@ -232,7 +232,8 @@ pub(crate) fn menu_input(
                 grace_period_ends_at: 65.0,
             });
 
-            next_state.set(GameState::Playing);
+            // Go to loading state to preload assets
+            next_state.set(GameState::Loading);
         }
     }
 }

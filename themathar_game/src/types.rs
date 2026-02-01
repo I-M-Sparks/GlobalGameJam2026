@@ -12,6 +12,7 @@ pub enum GameState {
     Menu,
     Credits,
     PlayerSetup, // Enter player names (1-4 players) for hotseat multiplayer
+    Loading,     // Loading assets before game starts
     Playing,
     GameOver,
 }

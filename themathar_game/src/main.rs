@@ -55,6 +55,10 @@ pub fn run_game() {
             .add_systems(OnEnter(GameState::PlayerSetup), ui::player_setup::setup_player_setup)
             .add_systems(Update, ui::player_setup::handle_player_setup.run_if(in_state(GameState::PlayerSetup)))
             .add_systems(OnExit(GameState::PlayerSetup), ui::cleanup::cleanup_ui)
+            // Loading - preload assets and show loading screen
+            .add_systems(OnEnter(GameState::Loading), ui::game::setup_loading)
+            .add_systems(Update, ui::game::check_loading_complete.run_if(in_state(GameState::Loading)))
+            .add_systems(OnExit(GameState::Loading), ui::cleanup::cleanup_ui)
             // Playing
             .add_systems(OnEnter(GameState::Playing), ui::game::setup_game)
             .add_systems(Update, (
