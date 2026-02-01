@@ -162,3 +162,97 @@ When game logic is changed and needs to be tested:
 - The WASM binary size varies; release builds are smaller than debug
 - **MIME type errors**: If you see "Expected a JavaScript-or-Wasm module script but the server responded with...", the issue is the wasm-bindgen wrapper. Always regenerate with `wasm-bindgen ... --target web` - this generates a wrapper that properly uses Fetch API instead of ES module imports
 - **Stray processes**: Always verify only one server is running on port 8000 with `lsof -i :8000`
+### Debug WordPress REST API Issues
+
+**Critical Issue Discovered (Feb 1, 2026):**
+The WordPress plugin directory (`/var/www/themathar/wp-content/plugins/themathar-game/`) can become out of sync with the repository. The `class-rest-api.php` file specifically had an outdated version (177 lines with old endpoints like `/player/create`, `/queue/join`) instead of the current version (595 lines with new `/lobbies` endpoints).
+
+**Verification Steps:**
+
+1. **Check if REST API routes are registered:**
+```bash
+curl -s http://localhost/wp-json/ | grep -o '"namespaces":\[[^]]*\]'
+```
+Should show: `"namespaces":["...", "themathar/v1", "..."]`
+
+2. **Test GET lobbies endpoint:**
+```bash
+curl -s http://localhost/wp-json/themathar/v1/lobbies
+```
+Should return: `{"success":true,"lobbies":[]}`
+
+3. **Test POST create lobby:**
+```bash
+curl -X POST http://localhost/wp-json/themathar/v1/lobbies \
+  -H "Content-Type: application/json" \
+  -d '{"player_name":"Test"}'
+```
+Should return: `{"success":true,"lobby_id":...,"player_id":...}`
+
+**If REST API Returns 404 (No route found):**
+
+1. **Check file sync issue:**
+```bash
+# Compare line counts
+wc -l /home/sparks/Themathar/wordpress-plugin/themathar-game/includes/class-rest-api.php
+wc -l /var/www/themathar/wp-content/plugins/themathar-game/includes/class-rest-api.php
+```
+
+2. **If WordPress file is older, sync it:**
+```bash
+sudo tee /var/www/themathar/wp-content/plugins/themathar-game/includes/class-rest-api.php > /dev/null \
+  < /home/sparks/Themathar/wordpress-plugin/themathar-game/includes/class-rest-api.php
+```
+
+3. **Clear WordPress transient caches:**
+```bash
+cd /var/www/themathar && php -r "
+require_once 'wp-load.php';
+global \$wpdb;
+\$wpdb->query(\"DELETE FROM \$wpdb->options WHERE option_name LIKE '%transient%'\");
+update_option('active_plugins', array());
+flush_rewrite_rules(false);
+sleep(1);
+update_option('active_plugins', array('themathar-game/themathar-game.php'));
+flush_rewrite_rules(false);
+do_action('rest_api_init');
+echo 'Cache cleared and plugin re-registered';
+"
+```
+
+4. **Verify REST API logs:**
+```bash
+tail -20 /var/log/nginx/error.log | grep "Themathar_REST_API"
+```
+Should see: `PHP message: Themathar_REST_API::register_routes called`
+
+**Cross-Browser Testing:**
+
+1. **From Windows accessing WSL:**
+```
+http://172.19.139.170:8000?wp=http://172.19.139.170
+```
+Replace `172.19.139.170` with your actual WSL IP from `hostname -I`
+
+2. **Browser console debug logs (emoji prefixes):**
+- 📡 POLL - Polling status
+- 📡 Fetching lobbies from - API URL being called
+- ✅ Lobby creation sent - Successful creation
+- 🎮 LOBBY CREATED - Local lobby created
+- 📡 CLIENT - Client-side cache state
+
+3. **Check WordPress API accessibility from game:**
+If game shows 404 on fetch, check:
+```bash
+curl -v http://172.19.139.170/wp-json/themathar/v1/lobbies
+```
+Should see `HTTP/1.0 200 OK` not `404 Not Found`
+
+**Common Pitfalls:**
+
+- ❌ Editing repo files but not syncing to `/var/www/themathar/`
+- ❌ Forgetting to clear WordPress transients after plugin changes
+- ❌ Using `localhost` when accessing from Windows (use WSL IP instead)
+- ❌ Not restarting polling when WordPress URL changes
+- ✅ Always sync plugin files immediately after changes
+- ✅ Always verify with curl before testing in browser
