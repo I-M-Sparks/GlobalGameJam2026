@@ -1,20 +1,20 @@
-/// Main game UI and systems
-
-use bevy::prelude::*;
-use crate::types::*;
-use crate::config::*;
-use crate::board;
 use super::cleanup::UIRoot;
+use crate::board;
+use crate::config::*;
+use crate::types::*;
+/// Main game UI and systems
+use bevy::prelude::*;
 
-pub(crate) fn setup_game(
-    mut commands: Commands,
-    board: Res<Board>,
-    _lobby: Res<Lobby>,
-    mut local_player: ResMut<LocalPlayerSlot>,
-) {
-    // Set local player slot to 1 for now (single-player/local testing)
-    // In real implementation, this comes from lobby join data
-    local_player.0 = 1;
+pub(crate) fn setup_game(mut commands: Commands, board: Res<Board>, lobby: Res<Lobby>) {
+    // Get player names from lobby (up to 4 players)
+    let player_names: Vec<String> = (1..=4)
+        .map(|slot| {
+            lobby
+                .player_at_slot(slot)
+                .map(|p| p.name.clone())
+                .unwrap_or_else(|| format!("Player {}", slot))
+        })
+        .collect();
 
     commands
         .spawn((
@@ -32,7 +32,7 @@ pub(crate) fn setup_game(
             // Player positions (clockwise: left, top, right, bottom)
             // Left player
             parent.spawn((
-                Text::new("Player 1"),
+                Text::new(player_names[0].clone()),
                 TextFont {
                     font_size: PLAYER_NAME_FONT_SIZE,
                     ..default()
@@ -49,7 +49,7 @@ pub(crate) fn setup_game(
 
             // Top player
             parent.spawn((
-                Text::new("Player 2"),
+                Text::new(player_names[1].clone()),
                 TextFont {
                     font_size: PLAYER_NAME_FONT_SIZE,
                     ..default()
@@ -66,7 +66,7 @@ pub(crate) fn setup_game(
 
             // Right player
             parent.spawn((
-                Text::new("Player 3"),
+                Text::new(player_names[2].clone()),
                 TextFont {
                     font_size: PLAYER_NAME_FONT_SIZE,
                     ..default()
@@ -81,9 +81,9 @@ pub(crate) fn setup_game(
                 PlayerNameDisplay,
             ));
 
-            // Bottom player
+            // Bottom player - positioned above the bottom UI bar (80px height + 20px margin)
             parent.spawn((
-                Text::new("Player 4"),
+                Text::new(player_names[3].clone()),
                 TextFont {
                     font_size: PLAYER_NAME_FONT_SIZE,
                     ..default()
@@ -92,7 +92,7 @@ pub(crate) fn setup_game(
                 Node {
                     position_type: PositionType::Absolute,
                     left: Val::Percent(50.0),
-                    bottom: Val::Px(20.0),
+                    bottom: Val::Px(100.0), // Above the 80px bottom UI bar
                     ..default()
                 },
                 PlayerNameDisplay,
@@ -107,9 +107,9 @@ pub(crate) fn setup_game(
                     left: Val::Percent(50.0),
                     top: Val::Percent(50.0),
                     margin: UiRect {
-                        left: Val::Px(-155.0),  // Half of grid size (310px / 2)
+                        left: Val::Px(-367.5), // Half of grid size: (150*4 + 15*3 + 30*2) / 2 = 735 / 2
                         right: Val::Auto,
-                        top: Val::Px(-155.0),
+                        top: Val::Px(-367.5),
                         bottom: Val::Auto,
                     },
                     ..default()
@@ -226,31 +226,6 @@ pub(crate) fn setup_game(
                                 TextColor(Color::WHITE),
                             ));
                         });
-
-                    // End turn button
-                    parent
-                        .spawn((
-                            Button,
-                            Node {
-                                width: Val::Px(120.0),
-                                height: Val::Px(60.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgb(1.0, 0.4, 0.4)),
-                            EndTurnButton,
-                        ))
-                        .with_children(|parent| {
-                            parent.spawn((
-                                Text::new("END TURN"),
-                                TextFont {
-                                    font_size: 20.0,
-                                    ..default()
-                                },
-                                TextColor(Color::WHITE),
-                            ));
-                        });
                 });
         });
 }
@@ -282,7 +257,10 @@ pub(crate) fn handle_card_clicks(
                 if !card.is_face_up {
                     card.is_face_up = true;
                     card.visibility_timer = CARD_FLIP_VISIBILITY_SECONDS;
-                    session.board_state.current_turn_flips.push(card_visual.position);
+                    session
+                        .board_state
+                        .current_turn_flips
+                        .push(card_visual.position);
                     session.board_state.last_flip_time = session.game_time;
 
                     // Record action for replay history
@@ -303,10 +281,7 @@ pub(crate) fn handle_card_clicks(
     }
 }
 
-pub(crate) fn check_pair_match(
-    board: Res<Board>,
-    mut session: ResMut<GameSession>,
-) {
+pub(crate) fn check_pair_match(board: Res<Board>, mut session: ResMut<GameSession>) {
     // Only check if exactly 2 cards are flipped
     if session.board_state.current_turn_flips.len() != 2 {
         return;
@@ -323,7 +298,7 @@ pub(crate) fn check_pair_match(
     if let (Some(card1), Some(card2)) = (board.card_at(pos1), board.card_at(pos2)) {
         let is_match = card1.pair_id == card2.pair_id;
         session.board_state.pair_match_result = Some(is_match);
-        
+
         // Set delay before turn-end behavior (allow time for visual feedback)
         session.board_state.pair_check_delay = if is_match { 0.5 } else { 1.0 };
     }
@@ -459,14 +434,17 @@ fn advance_turn(session: &mut GameSession) {
     // Set new turn timers
     session.turn_started_at = session.game_time;
     session.turn_timeout_at = session.game_time + TURN_TIME_LIMIT_SECONDS;
-    session.grace_period_ends_at = session.game_time + TURN_TIME_LIMIT_SECONDS + TURN_TIMEOUT_GRACE_PERIOD_SECONDS;
+    session.grace_period_ends_at =
+        session.game_time + TURN_TIME_LIMIT_SECONDS + TURN_TIMEOUT_GRACE_PERIOD_SECONDS;
 }
 
 pub(crate) fn update_ui_display(
     mut timer_query: Query<&mut Text, With<TurnTimerDisplay>>,
+    mut status_query: Query<&mut Text, (With<GameStatusDisplay>, Without<TurnTimerDisplay>)>,
     mut button_query: Query<&mut BackgroundColor, With<MaskButton>>,
     session: Res<GameSession>,
     local_player: Res<LocalPlayerSlot>,
+    lobby: Res<Lobby>,
 ) {
     for mut text in timer_query.iter_mut() {
         let remaining = (session.turn_timeout_at - session.game_time).max(0.0);
@@ -480,6 +458,15 @@ pub(crate) fn update_ui_display(
             String::new()
         };
         text.0 = format!("{:.0}s{}", remaining, status);
+    }
+
+    // Update status display with active player name
+    for mut text in status_query.iter_mut() {
+        let active_player_name = lobby
+            .player_at_slot(session.active_player_slot)
+            .map(|p| p.name.clone())
+            .unwrap_or_else(|| format!("Player {}", session.active_player_slot));
+        text.0 = format!("Active: {}", active_player_name);
     }
 
     // Disable mask button for non-active players or after timeout
@@ -519,12 +506,16 @@ pub(crate) fn handle_mask_activation(
             }
 
             // Prepare memory board
-            replay_board.cards = board.cards.iter().map(|card| ReplayCard {
-                position: card.position,
-                pair_id: card.pair_id,
-                card_type: card.card_type,
-                is_face_up: false,
-            }).collect();
+            replay_board.cards = board
+                .cards
+                .iter()
+                .map(|card| ReplayCard {
+                    position: card.position,
+                    pair_id: card.pair_id,
+                    card_type: card.card_type,
+                    is_face_up: false,
+                })
+                .collect();
 
             spawn_memory_board(&mut commands, &replay_board);
 
@@ -549,20 +540,23 @@ pub(crate) fn update_replay_system(
     memory_board_query: Query<Entity, With<MemoryBoard>>,
     children_query: Query<&Children>,
     session: Res<GameSession>,
-    local_player: Res<LocalPlayerSlot>,
 ) {
     if !replay.is_replaying {
         return;
     }
 
-    // Only show replay to active player
-    let is_active_player = local_player.0 == session.active_player_slot;
+    // In hotseat mode, all players see the replay
 
     replay.replay_timer += time.delta_secs();
 
-    while replay.replay_index < replay.actions.len() && replay.replay_timer >= replay.flip_interval {
+    while replay.replay_index < replay.actions.len() && replay.replay_timer >= replay.flip_interval
+    {
         let action = &replay.actions[replay.replay_index];
-        if let Some(card) = replay_board.cards.iter_mut().find(|c| c.position == action.position) {
+        if let Some(card) = replay_board
+            .cards
+            .iter_mut()
+            .find(|c| c.position == action.position)
+        {
             card.is_face_up = true;
         }
         replay.replay_timer -= replay.flip_interval;
@@ -588,16 +582,15 @@ pub(crate) fn update_card_visuals(
     card_query: Query<(&CardVisual, &Children)>,
     mut text_query: Query<&mut Text>,
     session: Res<GameSession>,
-    local_player: Res<LocalPlayerSlot>,
 ) {
-    let is_active_player = local_player.0 == session.active_player_slot;
+    // In hotseat mode, all players see the same board
 
     for (card_visual, children) in &card_query {
         if let Some(card) = board.card_at(card_visual.position) {
             for child in children.iter() {
                 if let Ok(mut text) = text_query.get_mut(child) {
-                    // Only show card face if this is the active player's turn
-                    text.0 = if is_active_player && card.is_face_up {
+                    // Show card face if it's face up (all players see the same)
+                    text.0 = if card.is_face_up {
                         board::get_pair_name(card.pair_id)
                     } else {
                         "?".to_string()
@@ -614,20 +607,19 @@ pub(crate) fn update_memory_board_visuals(
     card_query: Query<(&MemoryCardVisual, &Children)>,
     mut text_query: Query<&mut Text>,
     session: Res<GameSession>,
-    local_player: Res<LocalPlayerSlot>,
 ) {
     if !replay.is_replaying {
         return;
     }
 
-    // Only update memory board visuals for active player
-    let is_active_player = local_player.0 == session.active_player_slot;
-    if !is_active_player {
-        return;
-    }
+    // In hotseat mode, all players can see the replay
 
     for (card_visual, children) in &card_query {
-        if let Some(card) = replay_board.cards.iter().find(|c| c.position == card_visual.position) {
+        if let Some(card) = replay_board
+            .cards
+            .iter()
+            .find(|c| c.position == card_visual.position)
+        {
             for child in children.iter() {
                 if let Ok(mut text) = text_query.get_mut(child) {
                     text.0 = if card.is_face_up {
@@ -682,7 +674,9 @@ fn spawn_memory_board(commands: &mut Commands, replay_board: &ReplayBoard) {
                                     ..default()
                                 },
                                 BackgroundColor(Color::srgb(0.2, 0.2, 0.4)),
-                                MemoryCardVisual { position: card.position },
+                                MemoryCardVisual {
+                                    position: card.position,
+                                },
                             ))
                             .with_children(|parent| {
                                 parent.spawn((
@@ -699,11 +693,7 @@ fn spawn_memory_board(commands: &mut Commands, replay_board: &ReplayBoard) {
         });
 }
 
-fn despawn_recursive(
-    commands: &mut Commands,
-    entity: Entity,
-    children_query: &Query<&Children>,
-) {
+fn despawn_recursive(commands: &mut Commands, entity: Entity, children_query: &Query<&Children>) {
     if let Ok(children) = children_query.get(entity) {
         for child in children.iter() {
             despawn_recursive(commands, child, children_query);

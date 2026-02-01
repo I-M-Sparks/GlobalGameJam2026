@@ -1,17 +1,16 @@
-/// Player setup screen - enter 1-4 player names for hotseat multiplayer
-
-use bevy::prelude::*;
-use crate::types::{GameState, Lobby, Player, Board, Card, CardType, GameSession, BoardState};
 use super::cleanup::UIRoot;
+use crate::types::{Board, BoardState, Card, CardType, GameSession, GameState, Lobby, Player};
+/// Player setup screen - enter 1-4 player names for hotseat multiplayer
+use bevy::prelude::*;
 
 const MAX_PLAYERS: usize = 4;
 const MAX_NAME_LENGTH: usize = 20;
 
 #[derive(Component)]
-pub struct PlayerNameInput(pub usize);  // Which player slot (0-3)
+pub struct PlayerNameInput(pub usize); // Which player slot (0-3)
 
 #[derive(Component)]
-pub struct PlayerNameText(pub usize);  // Text display for player name
+pub struct PlayerNameText(pub usize); // Text display for player name
 
 #[derive(Component)]
 pub struct StartGameButton;
@@ -20,7 +19,7 @@ pub struct StartGameButton;
 #[derive(Resource, Default)]
 pub struct PlayerSetupState {
     pub names: [String; MAX_PLAYERS],
-    pub active_input: usize,  // Which input field is currently focused
+    pub active_input: usize, // Which input field is currently focused
 }
 
 pub(crate) fn setup_player_setup(
@@ -219,12 +218,12 @@ pub(crate) fn handle_player_setup(
                 lobby.max_players = player_count;
                 lobby.id = 1;
                 bevy::log::info!("🎮 Starting hotseat game with {} players", player_count);
-                
+
                 // Initialize the board with 16 cards (8 pairs)
                 use rand::Rng;
                 let mut rng = rand::thread_rng();
                 let mut cards = Vec::new();
-                
+
                 // Create 8 pairs (16 cards total)
                 for pair_id in 0..8 {
                     for _card_idx in 0..2 {
@@ -237,21 +236,21 @@ pub(crate) fn handle_player_setup(
                         });
                     }
                 }
-                
+
                 // Shuffle cards
                 for i in (1..cards.len()).rev() {
                     let j = rng.gen_range(0..=i);
                     cards.swap(i, j);
                 }
-                
+
                 // Set positions after shuffle
                 for (idx, card) in cards.iter_mut().enumerate() {
                     card.position = idx;
                 }
-                
+
                 let board = Board { cards };
                 commands.insert_resource(board);
-                
+
                 // Initialize game session
                 commands.insert_resource(GameSession {
                     lobby_id: 1,
@@ -265,7 +264,7 @@ pub(crate) fn handle_player_setup(
                     turn_timeout_at: 60.0,
                     grace_period_ends_at: 65.0,
                 });
-                
+
                 next_state.set(GameState::Playing);
             }
         }
@@ -273,11 +272,11 @@ pub(crate) fn handle_player_setup(
 }
 
 pub(crate) fn update_input_focus(
-    mut input_query: Query<&mut BorderColor, With<PlayerNameInput>>,
+    mut input_query: Query<(&PlayerNameInput, &mut BorderColor)>,
     setup_state: Res<PlayerSetupState>,
 ) {
-    for (idx, mut border) in input_query.iter_mut().enumerate() {
-        *border = if idx == setup_state.active_input {
+    for (player_input, mut border) in input_query.iter_mut() {
+        *border = if player_input.0 == setup_state.active_input {
             BorderColor::all(Color::srgb(0.0, 1.0, 1.0))
         } else {
             BorderColor::all(Color::srgb(1.0, 1.0, 1.0))
