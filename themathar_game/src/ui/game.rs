@@ -195,20 +195,21 @@ pub(crate) fn setup_game(
                                         CardVisual { position },
                                     ))
                                     .with_children(|parent| {
-                                        // Image - shown when face-up
+                                        // Image - shown when face-up (absolute positioning to fill card)
                                         parent.spawn((
                                             ImageNode::new(asset_server.load(&image_path)),
                                             Node {
+                                                position_type: PositionType::Absolute,
                                                 width: Val::Percent(100.0),
                                                 height: Val::Percent(100.0),
-                                                justify_content: JustifyContent::Center,
-                                                align_items: AlignItems::Center,
+                                                left: Val::Px(0.0),
+                                                top: Val::Px(0.0),
                                                 ..default()
                                             },
                                             Visibility::Hidden, // Start hidden, will be shown when face-up
                                         ));
 
-                                        // "?" text - shown when face-down
+                                        // "?" text - shown when face-down (absolute positioning centered)
                                         parent.spawn((
                                             Text::new("?".to_string()),
                                             TextFont {
@@ -217,8 +218,13 @@ pub(crate) fn setup_game(
                                             },
                                             TextColor(Color::WHITE),
                                             Node {
+                                                position_type: PositionType::Absolute,
+                                                width: Val::Percent(100.0),
+                                                height: Val::Percent(100.0),
                                                 justify_content: JustifyContent::Center,
                                                 align_items: AlignItems::Center,
+                                                left: Val::Px(0.0),
+                                                top: Val::Px(0.0),
                                                 ..default()
                                             },
                                             Visibility::Visible, // Start visible (face-down)
@@ -770,20 +776,21 @@ fn spawn_memory_board(
                                 },
                             ))
                             .with_children(|parent| {
-                                // Image - shown when face-up
+                                // Image - shown when face-up (absolute positioning to fill card)
                                 parent.spawn((
                                     ImageNode::new(asset_server.load(&image_path)),
                                     Node {
+                                        position_type: PositionType::Absolute,
                                         width: Val::Percent(100.0),
                                         height: Val::Percent(100.0),
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
+                                        left: Val::Px(0.0),
+                                        top: Val::Px(0.0),
                                         ..default()
                                     },
                                     Visibility::Hidden, // Will be shown based on card state
                                 ));
 
-                                // "?" text - shown when face-down
+                                // "?" text - shown when face-down (absolute positioning centered)
                                 parent.spawn((
                                     Text::new("?"),
                                     TextFont {
@@ -792,8 +799,13 @@ fn spawn_memory_board(
                                     },
                                     TextColor(Color::WHITE),
                                     Node {
+                                        position_type: PositionType::Absolute,
+                                        width: Val::Percent(100.0),
+                                        height: Val::Percent(100.0),
                                         justify_content: JustifyContent::Center,
                                         align_items: AlignItems::Center,
+                                        left: Val::Px(0.0),
+                                        top: Val::Px(0.0),
                                         ..default()
                                     },
                                     Visibility::Visible,
