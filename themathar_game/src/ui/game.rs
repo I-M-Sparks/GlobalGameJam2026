@@ -305,53 +305,11 @@ pub(crate) fn check_pair_match(board: Res<Board>, mut session: ResMut<GameSessio
 }
 
 pub(crate) fn end_turn_if_needed(
-    mut board: ResMut<Board>,
-    mut session: ResMut<GameSession>,
-    mut next_state: ResMut<NextState<GameState>>,
+    mut _board: ResMut<Board>,
+    mut _session: ResMut<GameSession>,
+    mut _next_state: ResMut<NextState<GameState>>,
 ) {
-    // Only process if pair was checked
-    if session.board_state.pair_match_result.is_none() {
-        return;
-    }
-
-    // Decrease delay timer
-    session.board_state.pair_check_delay -= 0.016; // Approximately 60 FPS
-
-    // Process turn end when delay expires
-    if session.board_state.pair_check_delay <= 0.0 {
-        let was_match = session.board_state.pair_match_result.unwrap_or(false);
-
-        if !was_match {
-            // Flip cards back if they didn't match
-            for &pos in &session.board_state.current_turn_flips {
-                if let Some(card) = board.card_at_mut(pos) {
-                    card.is_face_up = false;
-                }
-            }
-        }
-
-        // Check win condition (all cards face up and no cards left to flip)
-        let all_matched = board.cards.iter().all(|card| card.is_face_up);
-
-        if all_matched {
-            // Game won!
-            session.winner_id = Some(session.active_player_slot);
-            next_state.set(GameState::GameOver);
-        } else if !was_match {
-            // Advance to next player on mismatch
-            session.active_player_slot = session.active_player_slot % 4 + 1;
-            session.turn_number += 1;
-            session.turn_started_at = session.game_time;
-            session.turn_timeout_at = session.game_time + 60.0;
-            session.grace_period_ends_at = session.game_time + 65.0;
-        }
-        // If was_match, same player continues (don't change active_player_slot)
-
-        // Reset turn state
-        session.board_state.current_turn_flips.clear();
-        session.board_state.pair_match_result = None;
-        session.board_state.pair_check_delay = 0.0;
-    }
+    // All turn logic is consolidated in update_game_logic - this function is disabled
 }
 
 pub(crate) fn update_card_visibility(
@@ -366,12 +324,12 @@ pub(crate) fn update_card_visibility(
 
     session.game_time += time.delta_secs();
 
-    for card in board.cards.iter_mut() {
-        if card.is_face_up && card.visibility_timer > 0.0 {
-            card.visibility_timer -= time.delta_secs();
-            if card.visibility_timer <= 0.0 && session.board_state.current_turn_flips.len() == 2 {
-                // After 2 cards flip, check if they match
-                card.is_face_up = false;
+    // Only decrement visibility timers for cards that are part of the current turn flips
+    // and don't match (we'll handle matched pairs separately in update_game_logic)
+    for &pos in &session.board_state.current_turn_flips {
+        if let Some(card) = board.card_at_mut(pos) {
+            if card.is_face_up && card.visibility_timer > 0.0 {
+                card.visibility_timer -= time.delta_secs();
             }
         }
     }
@@ -382,47 +340,81 @@ pub(crate) fn update_game_logic(
     mut session: ResMut<GameSession>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    // Check win condition
+    // Check win condition: all cards are face-up (all pairs found)
     if board.all_flipped() {
         session.winner_id = Some(session.active_player_slot);
         next_state.set(GameState::GameOver);
         return;
     }
 
-    // Check if turn should end (2 cards flipped and timer expired)
+    // If exactly 2 cards have been flipped and we have a match result
     if session.board_state.current_turn_flips.len() == 2 {
         let card1_pos = session.board_state.current_turn_flips[0];
         let card2_pos = session.board_state.current_turn_flips[1];
 
         if let (Some(card1), Some(card2)) = (board.card_at(card1_pos), board.card_at(card2_pos)) {
+            let is_match = session.board_state.pair_match_result.unwrap_or(false);
+
+            println!(
+                "DEBUG: Flipped 2 cards - Timer1={:.2}, Timer2={:.2}, Match={:?}",
+                card1.visibility_timer, card2.visibility_timer, is_match
+            );
+
+            // Case 1: Cards matched - keep them face-up and clear turn flips so player can flip more
+            if is_match {
+                println!("DEBUG: Match found! Keeping cards face-up, player continues their turn");
+                session.board_state.current_turn_flips.clear();
+                session.board_state.pair_match_result = None;
+                return;
+            }
+
+            // Case 2: Cards don't match - wait for visibility timer to expire, then flip them back
             if card1.visibility_timer <= 0.0 && card2.visibility_timer <= 0.0 {
-                // Both cards have timed out
-                if !board::is_matching_pair(card1, card2) {
-                    // Mismatch - reset all cards and end turn
-                    board::reset_all_cards(&mut board);
-                    session.board_state.current_turn_flips.clear();
-                    advance_turn(&mut session);
-                } else {
-                    // Match - leave cards face up, can flip more
-                    session.board_state.current_turn_flips.clear();
+                println!("DEBUG: Non-match detected, visibility expired. Flipping cards back down and advancing turn");
+                // Flip these two cards back face-down
+                if let Some(card) = board.card_at_mut(card1_pos) {
+                    card.is_face_up = false;
                 }
+                if let Some(card) = board.card_at_mut(card2_pos) {
+                    card.is_face_up = false;
+                }
+                session.board_state.current_turn_flips.clear();
+                session.board_state.pair_match_result = None;
+                advance_turn(&mut board, &mut session);
+                return;
             }
         }
     }
 
-    // Check if turn time is up
+    // Option 3: Overall turn time is up (grace period expired) - end turn immediately
     if session.game_time >= session.grace_period_ends_at {
-        // Grace period expired - must advance turn
-        board::reset_all_cards(&mut board);
+        println!("DEBUG: Turn time expired (grace period). Ending turn and flipping all cards");
+
+        // Flip back any unmatched pairs that were just revealed
+        if session.board_state.current_turn_flips.len() == 2
+            && session.board_state.pair_match_result == Some(false)
+        {
+            for &pos in &session.board_state.current_turn_flips {
+                if let Some(card) = board.card_at_mut(pos) {
+                    card.is_face_up = false;
+                }
+            }
+        }
+
         session.board_state.current_turn_flips.clear();
-        advance_turn(&mut session);
-    } else if session.game_time >= session.turn_timeout_at {
-        // Turn time exceeded, but still in grace period
-        // Can't flip cards, but turn hasn't advanced yet
+        session.board_state.pair_match_result = None;
+        advance_turn(&mut board, &mut session);
     }
 }
 
-fn advance_turn(session: &mut GameSession) {
+fn advance_turn(board: &mut ResMut<Board>, session: &mut GameSession) {
+    // Flip ALL cards back to face-down when advancing to next player
+    println!("DEBUG: Flipping all cards to face-down for next player");
+    for card in board.cards.iter_mut() {
+        card.is_face_up = false;
+        card.visibility_timer = 0.0;
+    }
+
     session.mask_used_this_turn = false;
     session.active_player_slot = if session.active_player_slot == 4 {
         1
@@ -469,9 +461,8 @@ pub(crate) fn update_ui_display(
         text.0 = format!("Active: {}", active_player_name);
     }
 
-    // Disable mask button for non-active players or after timeout
-    let is_active = local_player.0 == session.active_player_slot;
-    let can_use_mask = is_active && session.game_time < session.turn_timeout_at;
+    // Update mask button state - available once per turn before timeout
+    let can_use_mask = !session.mask_used_this_turn && session.game_time < session.turn_timeout_at;
     for mut bg_color in button_query.iter_mut() {
         if can_use_mask {
             *bg_color = BackgroundColor(Color::srgb(0.8, 0.2, 0.8)); // Active
@@ -488,7 +479,6 @@ pub(crate) fn handle_mask_activation(
     mut replay: ResMut<ReplaySystem>,
     mut session: ResMut<GameSession>,
     mut commands: Commands,
-    local_player: Res<LocalPlayerSlot>,
 ) {
     for interaction in &interaction_query {
         if *interaction == Interaction::Pressed {
@@ -496,10 +486,7 @@ pub(crate) fn handle_mask_activation(
                 return;
             }
 
-            // Only the local active player can activate mask
-            if local_player.0 != session.active_player_slot {
-                return;
-            }
+            // In hotseat mode, any player can activate mask during their turn
 
             if replay.actions.is_empty() {
                 return;
